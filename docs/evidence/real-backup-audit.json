@@ -1,0 +1,91 @@
+{
+  "passed": true,
+  "transport": "USB reverse to 127.0.0.1 temporary WebDAV",
+  "allObjectDigestsVerified": true,
+  "allManifestDigestsVerified": true,
+  "privatePermissionsVerified": true,
+  "storedObjects": 20657,
+  "storedBytes": 3245190797,
+  "unreferencedObjects": 45,
+  "snapshots": [
+    {
+      "entries": 29529,
+      "entryTypes": {
+        "dir": 2692,
+        "file": 22458,
+        "link": 4371,
+        "char": 8
+      },
+      "rootKinds": {
+        "module": 23,
+        "extra": 8,
+        "ksu_config": 1,
+        "lspd_misc": 1,
+        "apk": 31,
+        "app_ce": 31,
+        "app_de": 31,
+        "app_external": 4,
+        "original_zip": 12
+      },
+      "packages": 31,
+      "lsposedTableRows": {
+        "modules": 31,
+        "modules_state": 32,
+        "scope": 103,
+        "module_configs": 352,
+        "app_configs": 0,
+        "lspd_configs": 3
+      },
+      "uniqueObjects": 20596,
+      "logicalFileBytes": 3663877031,
+      "newUniqueObjects": 20596,
+      "newUniqueBytes": 3144110869,
+      "unchangedFilesFromPrevious": 0,
+      "changedOrAddedFilesByKind": {},
+      "removedEntriesFromPrevious": 0,
+      "warnings": 14
+    },
+    {
+      "entries": 29530,
+      "entryTypes": {
+        "dir": 2692,
+        "file": 22459,
+        "link": 4371,
+        "char": 8
+      },
+      "rootKinds": {
+        "module": 23,
+        "extra": 8,
+        "ksu_config": 1,
+        "lspd_misc": 1,
+        "apk": 31,
+        "app_ce": 31,
+        "app_de": 31,
+        "app_external": 4,
+        "original_zip": 12
+      },
+      "packages": 31,
+      "lsposedTableRows": {
+        "modules": 31,
+        "modules_state": 32,
+        "scope": 103,
+        "module_configs": 352,
+        "app_configs": 0,
+        "lspd_configs": 3
+      },
+      "uniqueObjects": 20596,
+      "logicalFileBytes": 3664033530,
+      "newUniqueObjects": 16,
+      "newUniqueBytes": 13504847,
+      "unchangedFilesFromPrevious": 22442,
+      "changedOrAddedFilesByKind": {
+        "module": 5,
+        "extra": 10,
+        "app_ce": 2
+      },
+      "removedEntriesFromPrevious": 0,
+      "warnings": 14
+    }
+  ],
+  "productionRestorePerformed": false
+}

@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-21",
+  "endpoint": "https://nas.example.invalid/",
+  "objectSha256": "75dd98d32a515677c63d6462b0e66bc211896db4e7846e8d7a0e1da75f9ebe47",
+  "expectedBytes": 14550,
+  "ordinaryGet": {
+    "status": 200,
+    "bytes": 15279,
+    "contentType": "text/html; charset=utf-8",
+    "server": "cloudflare",
+    "injectedMarkers": ["beacon.min.js", "email-decode", "cdn-cgi"],
+    "hashMatches": false
+  },
+  "requestCacheControlNoTransform": {"bytes": 15279, "hashMatches": false},
+  "fullByteRangeGet": {
+    "range": "bytes=0-14549",
+    "status": 206,
+    "contentRange": "bytes 0-14549/14550",
+    "bytes": 14550,
+    "hashMatches": true,
+    "injectedMarkers": []
+  },
+  "nasConfigurationChanged": false,
+  "incompleteSnapshotPublished": false,
+  "fix": "Nonempty object reads request the complete byte range; validate 206 Content-Range and always require exact size and SHA-256. Servers returning 200 remain supported with the same size/hash checks. Empty files use ordinary GET."
+}

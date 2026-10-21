@@ -1,0 +1,36 @@
+{
+  "date": "2026-10-21",
+  "device": "PME110",
+  "manager": "com.kowx712.kowsupro",
+  "version": "0.1.0-beta.1",
+  "installedZipSha256": "702883d013fe9a7a30e93c6a1213db789c3ae7a1cba8f04d0ee4c3620b629e36",
+  "ksudInstallSucceeded": true,
+  "rebootCompleted": true,
+  "daemonRunningAfterReboot": true,
+  "ownerAndCloneStorageUnlocked": true,
+  "actualWebUI": {
+    "openedFromManagerModuleCard": true,
+    "configurationInitialProvisioning": "CLI stdin; private temporary credential file",
+    "readsSavedConfiguration": true,
+    "passwordNotDisplayed": true,
+    "savedViaActualButtonWithBlankPassword": true,
+    "savedPasswordRetained": true,
+    "connectionTestViaActualButton": true,
+    "connectionTestMessage": "WebDAV 连接与目录权限检查通过",
+    "inspectViaActualButton": true,
+    "inspectedKernelSUModules": 23,
+    "inspectedLSPosedPackageUserPairs": 31,
+    "enabledAutomaticBackupViaCheckboxAndSave": true
+  },
+  "nas": {
+    "endpoint": "https://nas.example.invalid/",
+    "directory": "/webdav/",
+    "tlsCertificateValidationEnabled": true,
+    "httpOptIn": false,
+    "firstAutomaticBackupStarted": true,
+    "firstAutomaticBackupStartObserved": "2026-10-21T18:56:28+08:00",
+    "completeSnapshotVerified": false
+  },
+  "restorePerformed": false,
+  "existingModulesOverwritten": false
+}

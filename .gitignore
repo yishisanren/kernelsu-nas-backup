@@ -1,0 +1,14 @@
+build/
+dist/
+__pycache__/
+*.pyc
+*.p12
+.DS_Store
+private/
+*.pem
+*.key
+config.json
+docs/evidence/*.png
+docs/evidence/*.jpg
+docs/evidence/*.jpeg
+docs/evidence/*.webp

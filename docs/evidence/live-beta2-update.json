@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-21",
+  "version": "0.1.0-beta.2",
+  "zipSha256": "16038df530448abfc56c5517ec58e2beaab31869f2d92ee7fc190c2d128bd82e",
+  "zipBytes": 1168481,
+  "parallelSmallTransfers": 16,
+  "maximumQueuedSpoolMiB": 128,
+  "updateMethod": "ksud install; stop only own daemon, atomically replace own runtime jar, sync own UI and module metadata, restart own service; no further reboot",
+  "liveModulePackageFileHashesChecked": 13,
+  "stagedModulePackageFileHashesChecked": 13,
+  "hashMismatches": 0,
+  "isolatedAndroidChecks": 63,
+  "webUIBridgeChecks": 12,
+  "reproducibleBuild": true,
+  "configurationRetained": true,
+  "automaticBackupResumed": true,
+  "existingNasObjectsReused": true,
+  "productionRestorePerformed": false
+}

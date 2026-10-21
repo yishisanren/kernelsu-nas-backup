@@ -1,0 +1,4 @@
+#!/system/bin/sh
+MODDIR="${0%/bin/nasbackup}"
+export CLASSPATH="$MODDIR/lib/nasbackup.jar"
+exec /system/bin/app_process /system/bin dev.nasbackup.Main "$@"

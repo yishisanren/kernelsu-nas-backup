@@ -1,0 +1,7 @@
+This distribution includes:
+OkHttp 4.12.0 and Okio 3.6.0 — Copyright Square, Inc.
+Kotlin Standard Library 1.9.10 and JetBrains Annotations 13.0 — Copyright JetBrains s.r.o.
+These components are licensed under the Apache License, Version 2.0.
+Their source is available at https://github.com/square/okhttp, https://github.com/square/okio,
+https://github.com/JetBrains/kotlin and https://github.com/JetBrains/java-annotations.
+The libraries are compiled to Android DEX without source modifications.

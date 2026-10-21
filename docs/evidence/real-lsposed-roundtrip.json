@@ -1,0 +1,17 @@
+{
+  "passed": true,
+  "tables": 6,
+  "rows": 521,
+  "apkPathsRemapped": 29,
+  "missingApkRecordsPreservedDisabled": 2,
+  "productionDatabaseChanged": false,
+  "checks": [
+    "Manifest fetched through WebDAV and SHA-256 checked",
+    "Engine validates the real manifest",
+    "Lsp.write reconstructs the snapshot in a private temporary SQLite database",
+    "Mappings use the actual APK packages included in the snapshot",
+    "Lsp.read matches all table rows and BLOB values after expected APK path remapping and disabling absent APK records",
+    "Database version retained",
+    "Temporary database and sidecars removed"
+  ]
+}

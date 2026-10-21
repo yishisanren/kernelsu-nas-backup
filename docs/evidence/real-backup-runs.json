@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-21",
+  "completeSnapshotRuns": [
+    {"phase": "completed after USB interruption retry", "entries": 29529, "uploadedObjects": 61, "uploadedBytes": 379062791, "warnings": 14},
+    {"phase": "completed incremental follow-up", "entries": 29530, "uploadedObjects": 15, "uploadedBytes": 13484367, "warnings": 14}
+  ],
+  "sourceDataWasLive": true,
+  "snapshotCollectionPrecedesStaleRecordRestoreFix": true,
+  "finalRestoreCodeVerifiedAgainstRealSnapshot": true,
+  "productionModulesReplaced": false,
+  "productionRestorePerformed": false,
+  "factoryResetPerformed": false,
+  "realNasUsed": false
+}

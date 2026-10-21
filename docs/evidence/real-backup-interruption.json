@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-21",
+  "authorization": "User explicitly authorized temporary complete validation on this Mac",
+  "transport": "USB reverse to loopback-only WebDAV",
+  "result": "USB disconnected before snapshot commit",
+  "verifiedObjects": 20581,
+  "verifiedBytes": 2852643639,
+  "interruptedPartialObjects": 1,
+  "committedSnapshots": 0,
+  "privatePermissionsVerified": true,
+  "productionRestorePerformed": false,
+  "fullBackupPassed": false
+}

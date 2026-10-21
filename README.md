@@ -1,0 +1,92 @@
+# NAS 模块备份
+
+通过 WebDAV 增量备份 KernelSU 与 LSPosed 模块环境，支持历史快照恢复和本机回退。当前版本：`0.1.0-beta.2`。
+
+安装 ZIP、源码 ZIP 和 SHA-256 校验文件见仓库 Releases。当前为预发布版本：已通过隔离测试及实际 WebUI 验证，真实 NAS 完整备份和整机恢复验收尚未完成。
+
+仓库及附件不包含私人 WebDAV 连接配置、真实备份数据或实机截图。验证记录中的连接信息已匿名化；请在手机 WebUI 中填写自己的地址和凭据。
+
+## 安装和备份
+
+1. 在 KernelSU 管理器中安装 `nas-module-backup-0.1.0-beta.2.zip`，按管理器提示重启。
+2. 打开模块 WebUI，填写 NAS 的 WebDAV 目录、用户名和密码，保存并测试连接。
+3. 点“检查备份范围”。原 ZIP 默认在主用户的 Download 目录查找，可补充搜索目录和 `/data/adb` 下的外部配置路径。
+4. 点“立即增量备份”。开启自动备份后，每分钟检查模块及 LSPosed 状态，变化稳定约一分钟后备份；至少每 24 小时补查一次，失败约 5 分钟后重试。
+
+如果系统分身或其他 Android 用户也装有 LSPosed 模块，重启后需分别解锁一次。加密配置尚不可读时，备份会等待并重试，不会静默遗漏分身配置。
+
+首次备份建立基线。之后按 SHA-256 复用 NAS 已有内容，只有新增或变化的文件上传。超过 32 MiB 且 NAS 没有完整对象的文件分成 8 MiB 内容块，大文件变化时只传变化块；恢复时校验各块并拼回原文件，再核对整文件 SHA-256。删除文件只改变新快照，旧快照保留。每份快照都有完整逻辑清单，不需要手工串联合并增量。新版使用格式 2，并兼容读取格式 1 的旧快照。
+
+小文件和内容块最多 16 路并行上传并回读校验，排队临时数据不超过 128 MiB；未分块且大于 8 MiB 的文件单独处理。只有所有内容校验通过，才提交完整快照。界面显示当前阶段和已上传校验的容量。
+
+HTTPS 验证系统信任的证书。HTTP 必须明确开启；不支持跳过 TLS 验证。地址须为最终 WebDAV 地址，不跟随重定向。账号须对填写的目录有读、写、创建目录、列目录权限；无需删除 NAS 历史内容的权限。连接设置仅保存到手机 Root 私有目录，不进入 NAS 快照。
+
+非空内容对象通过完整字节范围下载，避免反向代理向 HTML 文件注入脚本。206 响应必须覆盖清单声明的完整范围；所有响应仍校验大小和 SHA-256。服务端不支持 Range 而返回 200 时，也必须通过相同校验。
+
+## 备份内容
+
+| 内容 | 处理 |
+| --- | --- |
+| KernelSU 模块 | 原 ZIP 可找到时保留，同时保存完整已安装目录、权限、UID/GID、符号链接、启用状态及相关扩展属性；包含待重启安装/更新的版本 |
+| 外部配置 | 自动识别模块脚本引用的 `/data/adb` 顶层配置目录，以及同名目录；支持手动补充路径 |
+| KernelSU 模块设置 | 保存 `/data/adb/ksu/module_configs`；不复制 Root 授权数据库或整个 `/data/adb` |
+| KernelSU 挂载引擎 | 保存并恢复指向已备份模块的 metamodule 入口，覆盖当前手机的 NoMount 连接关系 |
+| LSPosed 应用 | 保存主 APK 与所有 split APK、各 Android 用户下的 CE/DE 配置和 Android/data 内容 |
+| LSPosed 状态 | 一致性导出启用状态、作用域和配置 BLOB；适配当前手机的六表结构、数据库版本 101 |
+| LSPosed 文件 | 保存 `/data/adb/lspd/modules` 和数据库指向的 UUID 数据目录，包含 Android 17 的 apexdata 路径 |
+| SQLite | 使用一致性读事务或 VACUUM INTO，将 WAL 中数据纳入快照，不直接拼接正在使用的数据库文件 |
+
+不保留可重新生成的应用 cache、code_cache、lib，模块 oat/.git，以及运行时 socket。FIFO、overlay whiteout 和常见虚拟终端设备节点保留；拒绝未知设备节点。普通文件按内容备份；硬链接关系会变成同内容文件，稀疏文件可能占用更多空间。模块二进制内部使用的额外路径无法靠脚本扫描穷尽，需要在范围检查后补充。
+
+## 恢复出厂后恢复
+
+先让 KernelSU / Root 正常工作，重新安装本模块并连接 NAS。需要恢复到与快照一致的设备型号、系统构建、ABI 和 KernelSU 版本。原快照使用的 Android 用户必须已经存在；例如用户 10 的配置不能直接写进用户 0。
+
+1. 刷新历史快照，选择快照并检查恢复条件。
+2. 确认范围后点击恢复。下载与校验全部内容，安装模块 APK，重建新的 APK 路径与 UID 映射，准备配置和本机回退记录。
+3. 界面提示后手动重启。启动早期应用系统配置及离线 LSPosed 数据库，暂时禁用 LSPosed 模块以等待应用数据恢复。
+4. 解锁涉及的 Android 用户，后台恢复模块应用数据，保留 Android 新建目录的加密策略。
+5. 界面提示后再重启，离线恢复 LSPosed 原启用状态，让全部模块环境生效。确认可用后清理本机暂存和回退副本。
+
+不会自动重启，也不在 LSPosed 运行期间直接覆盖数据库。恢复不会删除其他不在快照内的模块或普通应用。恢复范围内的配置会替换为快照版本；原数据保留用于回退。原 ZIP 保留在备份中，但恢复使用目录快照，不重复运行第三方模块安装脚本。
+
+LSPosed 可能保留已卸载应用的数据库记录。这类记录没有可备份的 APK；其配置和作用域仍保留，恢复时保持禁用，预检会列出缺失安装包，需自行重新安装后再启用。
+
+如果已安装的模块 APK 与快照不同，当前版本会停止恢复，避免应用数据迁移使回退失效。先在干净环境恢复，或自行处理该应用版本。普通作用域目标应用（例如聊天应用）不属于本工具的备份范围，需要另行安装；作用域按包名和用户恢复。
+
+“回退本次恢复”会安排下次启动恢复原系统配置，解锁后恢复原应用数据并卸载本次新安装的模块 APK。再次重启使原模块生效。恢复应用中断时，下次启动会根据日志回退系统配置；不要在回退完成前清理暂存。
+
+## 已知边界
+
+- 当前真机适配：PME110 / OP61C1L1、Android 17/API 37、KernelSU 3.3.1-100-gefd88a07、LSPosed 2.2.1 (7927)。其他组合未作兼容性承诺。
+- 未对现用手机执行恢复出厂，也未覆盖现用模块进行整机重启恢复。验证范围和实测结果见 `docs/VALIDATION.md`。
+- Android Keystore/硬件密钥绑定的配置无法只靠复制文件恢复。恢复后可能需要重新登录或重新设置。
+- 跨文件的应用业务事务无法在应用运行时保证整体同一时刻；单个 SQLite 数据库按一致性快照处理，检测到安装状态或源文件变化时失败重试。
+- 快照包含模块代码和配置，NAS 账号应只供可信设备使用。本版提供 HTTPS 传输与 SHA-256 完整性检查，没有额外的客户端加密或签名。
+- 不自动删除历史快照或执行垃圾回收。卸载本模块保留 `/data/adb/nas_module_backup` 下的设置和回退记录，NAS 内容也保留。
+- 若恢复后第三方模块导致无法正常开机，应先使用 KernelSU 的安全模式禁用模块，恢复开机后再执行回退。不能把一次隔离测试视为所有模块都能无条件迁移。
+
+## 源码和构建
+
+需要 JDK 21、Android SDK Platform 36、Build Tools 36.0.0、Python 3.9+。设置 `JAVA_HOME` 与 `ANDROID_HOME`，执行：
+
+```sh
+python3 scripts/build.py
+node tests/webui_test.cjs
+```
+
+首次构建从 Maven Central 下载固定依赖，后续按 `dependencies.lock.json` 校验。发布 dex 与测试 dex 分开，安装包不包含测试类。ZIP 使用固定时间戳；同一工具链和源码可重现。依赖与许可证见 `THIRD_PARTY.md`。
+
+隔离测试：`python3 scripts/verify_device.py --serial <ADB序列号>`。它使用手机 `/data/local/tmp/nasbackup-*` 专用目录和本机回环 WebDAV，安装并卸载专用无代码测试 APK，不恢复出厂、不更改现用模块。真实数据的完整备份测试是单独入口，不由该脚本执行。
+
+主要实现：`Inventory.java` 采集范围与元数据；`Dav.java` WebDAV；`Engine.java` 增量对象与快照；`Lsp.java` LSPosed 逻辑导出恢复；`Restore.java` 分阶段恢复与回退；`Main.java` CLI、锁与调度；`module/webroot` 中文界面。
+
+## 机制参考
+
+- [KernelSU 模块开发指南](https://kernelsu.org/guide/module.html)
+- [KernelSU WebUI](https://kernelsu.org/guide/module-webui.html)
+- [KernelSU 模块安装与更新实现](https://github.com/tiann/KernelSU/blob/main/userspace/ksud/src/module.rs)
+- [LSPosed 上游备份逻辑](https://github.com/LSPosed/LSPosed/blob/master/app/src/main/java/org/lsposed/manager/util/BackupUtils.java)
+- [Android 加密偏好配置的备份限制](https://developer.android.com/reference/androidx/security/crypto/EncryptedSharedPreferences)
+
+当前 LSPosed 分支的数据库结构以本机只读探针结果为准；没有依赖不稳定的 lspctl 自动化接口。
