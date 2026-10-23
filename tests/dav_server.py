@@ -1,18 +1,28 @@
 """Isolated WebDAV fixture. Only bind loopback; no real NAS data or credentials."""
-import argparse,base64,hashlib,http.server,json,pathlib,urllib.parse,xml.sax.saxutils,threading,os,ssl
-parser=argparse.ArgumentParser();parser.add_argument('--root',required=True);parser.add_argument('--port',type=int,default=18791);parser.add_argument('--cert');parser.add_argument('--key');args=parser.parse_args()
+import argparse,base64,hashlib,http.server,json,pathlib,urllib.parse,xml.sax.saxutils,threading,os,ssl,socket
+parser=argparse.ArgumentParser();parser.add_argument('--root',required=True);parser.add_argument('--port',type=int,default=18791);parser.add_argument('--cert');parser.add_argument('--key');parser.add_argument('--latency-ms',type=float,default=0);parser.add_argument('--keep-alive',action='store_true');args=parser.parse_args()
 ROOT=pathlib.Path(args.root).resolve();ROOT.mkdir(parents=True,exist_ok=True)
 os.chmod(ROOT,0o700)
-stats={'puts':0,'object_puts':0,'bytes':0,'unauthorized':0}
+stats={'puts':0,'object_puts':0,'pack_puts':0,'bytes':0,'get_bytes':0,'unauthorized':0,'requests':0,'GET':0,'HEAD':0,'PUT':0,'MKCOL':0,'PROPFIND':0}
 fault={'next':False,'transform':False,'bad_range':False}
 class Handler(http.server.BaseHTTPRequestHandler):
+    protocol_version='HTTP/1.1' if args.keep_alive else 'HTTP/1.0'
+    def setup(self):
+        super().setup()
+        if args.keep_alive:self.connection.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
     def log_message(self,*args):pass
     def reply(self,status,body=b'',**headers):
         self.send_response(status);self.send_header('Content-Length',str(len(body)))
         for k,v in headers.items():self.send_header(k,v)
         self.end_headers()
-        if self.command!='HEAD':self.wfile.write(body)
+        if self.command!='HEAD':
+            try:self.wfile.write(body)
+            except (BrokenPipeError,ConnectionResetError):pass  # Expected when corruption tests cancel siblings.
     def resolve_path(self):
+        if not self.path.startswith('/control/') and self.path!='/stats':
+            import time
+            stats['requests']+=1;stats[self.command]=stats.get(self.command,0)+1
+            if args.latency_ms:time.sleep(args.latency_ms/1000)
         if self.headers.get('Authorization')!='Basic '+base64.b64encode(b'test:test').decode():stats['unauthorized']+=1;self.reply(401);return None
         value=urllib.parse.unquote(urllib.parse.urlparse(self.path).path).lstrip('/')
         path=(ROOT/value).resolve()
@@ -28,15 +38,17 @@ class Handler(http.server.BaseHTTPRequestHandler):
         p=self.resolve_path()
         if p is None:return
         data=self.rfile.read(int(self.headers.get('Content-Length',0)))
-        if '/objects/' in str(p) and len(data)>32*1024*1024:self.reply(413);return
+        content='/objects/' in str(p) or '/packs/' in str(p)
+        if content and len(data)>32*1024*1024:self.reply(413);return
         if self.path=='/control/fail-next-object':fault['next']=True;self.reply(201);return
         if self.path=='/control/transform-html':fault['transform']=True;self.reply(201);return
         if self.path=='/control/bad-range':fault['bad_range']=bool(data);self.reply(201);return
         if not p.parent.exists():self.reply(409);return
-        if fault['next'] and '/objects/' in str(p):
+        if fault['next'] and content:
             fault['next']=False;p.write_bytes(data[:len(data)//2]);os.chmod(p,0o600);self.reply(503);return
         p.write_bytes(data);os.chmod(p,0o600);stats['puts']+=1;stats['bytes']+=len(data)
         if '/objects/' in str(p):stats['object_puts']+=1
+        if '/packs/' in str(p):stats['pack_puts']+=1
         self.reply(201)
     def do_GET(self):
         p=self.resolve_path()
@@ -45,6 +57,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self.path=='/redirect':self.reply(307,Location='http://127.0.0.1:1/credential-sink');return
         if not p.is_file():self.reply(404);return
         data=p.read_bytes()
+        if self.command=='GET':stats['get_bytes']+=len(data)
         if self.command=='GET' and fault['transform'] and data.startswith(b'<!doctype html>'):
             if self.headers.get('Range')=='bytes=0-'+str(len(data)-1):
                 content_range='bytes 1-'+str(len(data)-1)+'/'+str(len(data)) if fault['bad_range'] else 'bytes 0-'+str(len(data)-1)+'/'+str(len(data))

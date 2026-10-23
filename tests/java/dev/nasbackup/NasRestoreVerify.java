@@ -4,7 +4,6 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.DatabaseUtils;
 import java.nio.file.*;
 import java.util.*;
-import java.util.concurrent.*;
 import org.json.*;
 
 /** Opt-in real NAS verification. Writes only below an owned, private temporary root. */
@@ -28,21 +27,6 @@ public final class NasRestoreVerify {
         int count=expected.contains(key+"/"+base.relativize(p))?0:1;
         if(meta.getString("type").equals("dir"))try(DirectoryStream<Path> children=Files.newDirectoryStream(p)){for(Path child:children)count+=newEntries(key,kind,base,child,expected);}
         return count;
-    }
-    static void prefetch(Engine engine,JSONObject manifest)throws Exception{
-        Path stage=engine.state.resolve("restore-stage");Util.mkdir(stage.resolve("objects"));Util.write(stage.resolve("manifest.json"),manifest);
-        Map<String,Long> objects=new LinkedHashMap<>();JSONArray entries=manifest.getJSONArray("entries");
-        for(int i=0;i<entries.length();i++){JSONObject e=entries.getJSONObject(i);if(!e.getString("type").equals("file"))continue;JSONArray refs=Engine.objects(e);for(int n=0;n<refs.length();n++){JSONObject o=refs.getJSONObject(n);objects.put(o.getString("hash"),o.getLong("size"));}}
-        ExecutorService pool=Executors.newFixedThreadPool(8);ArrayDeque<Future<?>> pending=new ArrayDeque<>();int done=0;
-        try{
-            for(Map.Entry<String,Long> object:objects.entrySet()){
-                pending.add(pool.submit(()->{String hash=object.getKey();long size=object.getValue();Path p=stage.resolve("objects").resolve(hash);
-                    if(!(Files.isRegularFile(p,LinkOption.NOFOLLOW_LINKS)&&Files.size(p)==size&&Util.hash(p).equals(hash)))engine.dav.verifyRemote(engine.dav.objectPath(hash),hash,size,p);return null;}));
-                if(pending.size()>=8){pending.removeFirst().get();done++;if(done%200==0)System.out.println(Util.obj("downloadedObjects",done,"totalObjects",objects.size()));}
-            }
-            while(!pending.isEmpty()){pending.removeFirst().get();done++;}
-        }finally{for(Future<?> future:pending)future.cancel(true);pool.shutdownNow();check(pool.awaitTermination(90,TimeUnit.SECONDS),"下载线程未退出");}
-        System.out.println(Util.obj("downloadedObjects",done,"totalObjects",objects.size()));
     }
     static void verifyRestored(JSONObject manifest,Restore restore,Path target)throws Exception{
         Map<String,JSONObject> roots=new HashMap<>();for(JSONObject r:Restore.roots(manifest))roots.put(r.getString("key"),r);
@@ -121,7 +105,7 @@ public final class NasRestoreVerify {
         Inventory sandbox=new Inventory(target,true){@Override JSONObject environment()throws Exception{return manifest.getJSONObject("environment");}};
         Engine engine=new Engine(state,sandbox,Main.config());Restore restore=new Restore(engine);Util.mkdir(target);
         for(JSONObject r:Restore.roots(manifest))if(r.getString("kind").startsWith("app_"))Util.mkdir(restore.target(r.getString("destination")));
-        prefetch(engine,manifest);restore.prepare(manifest);restore.early();restore.finishApps();restore.early();
+        restore.prepare(manifest);restore.early();restore.finishApps();restore.early();
         check(restore.status().getString("phase").equals("complete"),"模拟恢复未完成");verifyRestored(manifest,restore,target);
     }
 }

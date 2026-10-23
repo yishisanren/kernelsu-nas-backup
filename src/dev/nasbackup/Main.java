@@ -54,6 +54,7 @@ public final class Main {
             }
             case "plan":{JSONObject m=e.manifest(request.getString("vault"),request.getString("id"));JSONObject plan=e.plan(m);Util.write(STATE.resolve("plan.json"),Util.obj("manifest",m,"digest",Util.hash(Util.bytes(m)),"created",System.currentTimeMillis()));return plan.put("digest",Util.hash(Util.bytes(m)));}
             case "restore":{JSONObject p=Util.read(STATE.resolve("plan.json"));Util.require(System.currentTimeMillis()-p.getLong("created")<30*60*1000,"恢复预检已过期，请重新检查");Util.require(request.getString("digest").equals(p.getString("digest")),"恢复确认与预检不匹配");return restore.prepare(p.getJSONObject("manifest"));}
+            case "export":return e.export(e.manifest(request.getString("vault"),request.getString("id")));
             case "rollback":restore.requestRollback();return Util.obj("phase","rollback-requested");
             case "clean":restore.clean();return Util.obj("cleaned",true);
             case "early":restore.early();return Util.obj("phase",restore.status().getString("phase"));

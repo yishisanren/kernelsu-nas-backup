@@ -13,10 +13,12 @@ async function guarded(action){if(busy)return;busy=true;try{await action();}catc
 async function refresh(){try{const data=await call('status');if(!loaded){for(const k of ['url','username'])$(k).value=data.config[k]||'';for(const k of ['auto','allowHttp'])$(k).checked=!!data.config[k];for(const k of ['zipDirs','extraPaths'])$(k).value=(data.config[k]||[]).join('\n');loaded=true;}
  $('status').textContent=data.status.phase+(data.status.error?' · '+data.status.error:'')+(data.status.phase.startsWith('读取 ')&&Number.isFinite(data.status.uploadedFiles)?' · 已上传并校验 '+(data.status.uploadedBytes/1048576).toFixed(2)+' MB':'');$('restoreState').textContent=phases[data.restore.phase]||data.restore.phase;if(data.restore.error)$('restoreState').textContent+=' · '+data.restore.error;
  const b=data.lastBackup;$('lastBackup').textContent=b.time?'最近成功：'+new Date(b.time).toLocaleString()+' · 新上传 '+(b.uploadedBytes/1048576).toFixed(2)+' MB':'';
+ if(data.status.path)$('status').textContent+=' · '+data.status.path;
  }catch(e){$('status').textContent=e.message;}}
 $('settings').addEventListener('submit',event=>{event.preventDefault();guarded(async()=>{await call('configure',{url:$('url').value.trim(),username:$('username').value,password:$('password').value,allowHttp:$('allowHttp').checked,auto:$('auto').checked,zipDirs:lines('zipDirs'),extraPaths:lines('extraPaths')});$('password').value='';$('message').textContent='设置已保存';});});
 $('test').onclick=()=>guarded(async()=>{await call('test');$('message').textContent='WebDAV 连接与目录权限检查通过';});
 $('backup').onclick=()=>guarded(()=>launch('backup'));
+$('export').onclick=()=>guarded(async()=>{if(!$('snapshots').value)throw new Error('请先选择快照');await launch('export',JSON.parse($('snapshots').value));});
 $('inspect').onclick=()=>guarded(async()=>{const r=await call('inspect');show('inventory','KernelSU 模块：'+r.modules.length+'\nLSPosed 模块应用：'+r.packages.length+'\n配置记录：'+JSON.stringify(r.lsposed.counts)+'\n外部配置：\n'+r.externalPaths.join('\n')+'\n\n'+r.warnings.join('\n'));});
 $('history').onclick=()=>guarded(async()=>{const r=await call('history');$('snapshots').replaceChildren();for(const s of r.snapshots.sort((a,b)=>b.id.localeCompare(a.id))){const option=document.createElement('option');option.value=JSON.stringify(s);option.textContent=new Date(Number(s.id.split('-')[0])).toLocaleString()+' · '+s.vault;$('snapshots').append(option);}if(!r.snapshots.length)$('message').textContent='还没有已完成的快照';});
 $('snapshots').onchange=()=>{restoreDigest='';$('confirmBox').hidden=true;};

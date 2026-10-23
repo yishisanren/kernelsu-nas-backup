@@ -63,12 +63,22 @@ final class Dav {
     byte[] get(String path,int limit)throws Exception{Reply r=request("GET",path,null,Collections.emptyMap(),limit);ok(r,200);return r.body;}
     String objectPath(String hash)throws Exception{Util.require(hash.matches("[a-f0-9]{64}"),"无效内容校验值");return "objects/"+hash.substring(0,2)+"/"+hash;}
     boolean hasObject(String hash,long size)throws Exception {
-        Reply h=req("HEAD",objectPath(hash),null);
+        return hasFile(objectPath(hash),size);
+    }
+    boolean hasFile(String path,long size)throws Exception {
+        Reply h=req("HEAD",path,null);
         if(h.code==200){for(String k:h.headers.keySet())if(k.equalsIgnoreCase("Content-Length"))return Long.toString(size).equals(h.headers.get(k).get(0));return false;}
         ok(h,404);return false;
     }
     void object(Path file,String hash,long size)throws Exception {
         if(hasObject(hash,size))return;String p=objectPath(hash);dirs("objects/"+hash.substring(0,2));
+        upload(file,p,hash,size);
+    }
+    void file(Path file,String p,String hash,long size)throws Exception {
+        if(hasFile(p,size)){verifyRemote(p,hash,size,null);return;}
+        upload(file,p,hash,size);
+    }
+    void upload(Path file,String p,String hash,long size)throws Exception {
         try(Response r=client.newCall(builder(p).put(RequestBody.create(MediaType.get("application/octet-stream"),file.toFile())).build()).execute()){
             Util.require(r.code()==200||r.code()==201||r.code()==204,"对象上传失败 HTTP "+r.code());
         }

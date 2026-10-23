@@ -43,7 +43,7 @@ public final class Integration {
         for(String ddl:Lsp.CURRENT.values())db.execSQL(ddl);db.setVersion(101);db.enableWriteAheadLogging();
         db.execSQL("INSERT INTO modules VALUES ('test.module','/data/app/test/base.apk')");db.execSQL("INSERT INTO modules_state VALUES ('test.module',0,1,1)");db.execSQL("INSERT INTO scope VALUES ('test.module','android',0)");
         db.execSQL("INSERT INTO lspd_configs VALUES ('test',X'010203')");
-        JSONObject config=Util.obj("url",args.length>0?args[0]:"http://127.0.0.1:18791/","allowHttp",true,"username","test","password","test","vault","fixture","extraPaths",new JSONArray(),"zipDirs",new JSONArray());
+        JSONObject config=Util.obj("url",args.length>0?args[0]:"http://127.0.0.1:18791/","allowHttp",true,"username","test","password","test","vault","fixture","legacyObjects",true,"extraPaths",new JSONArray(),"zipDirs",new JSONArray());
         Map<Integer,Boolean> userStates=new TreeMap<>();userStates.put(0,true);userStates.put(10,false);
         Inventory users=new Inventory(source,true){@Override Map<Integer,Boolean> userStates(){return userStates;}};
         check(users.backupUsers().equals(Arrays.asList(0))&&users.skippedUsers.toString().equals("[10]"),"未解锁分身被跳过且主用户继续备份");

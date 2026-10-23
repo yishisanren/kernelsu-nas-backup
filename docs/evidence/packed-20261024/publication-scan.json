@@ -1,0 +1,8 @@
+{
+  "privateCategoriesChecked": ["webdavUser", "webdavPassword", "webdavDomain", "webdavPublicUrl", "webdavLan", "webdavLanUrl", "webdavPath", "basicAuth", "deviceSerial", "localHome"],
+  "sensitiveMatches": [],
+  "encodedVariantsChecked": ["UTF-8", "UTF-16LE", "UTF-16BE", "URL encoding", "JSON unicode escapes", "Base64"],
+  "nestedArchivesScanned": true,
+  "sourceExactlyMatchesIndex": true,
+  "privateDataAndScreenshotsExcluded": true
+}

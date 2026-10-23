@@ -25,6 +25,7 @@ const tick=()=>new Promise(r=>setImmediate(r));let checks=0;function check(ok,me
  elements.agree.checked=true;elements.agree.onchange();check(!elements.restore.disabled,'确认后允许恢复');
  await elements.restore.onclick();check(jobs.length===1&&jobs[0].includes(' restore stdin'),'恢复异步启动');
  elements.snapshots.onchange();check(elements.confirmBox.hidden,'切换快照清除确认');
+ await elements.export.onclick();check(jobs.length===2&&jobs[1].includes(' export stdin'),'所选快照单ZIP导出异步启动');
  check(!fs.readFileSync(root+'/module/webroot/index.html','utf8').includes('https://cdn'),'无外部脚本依赖');
  console.log(JSON.stringify({passed:checks,suite:'webui'}));
 })().catch(e=>{console.error(e);process.exit(1);});

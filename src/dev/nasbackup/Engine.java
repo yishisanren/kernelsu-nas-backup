@@ -14,6 +14,7 @@ final class Engine {
     static final int CHUNK_SIZE=8*1024*1024;
     final Path state;final Inventory inventory;final JSONObject config;final Dav dav;
     final JSONArray roots=new JSONArray(),entries=new JSONArray(),warnings=new JSONArray();
+    Packs packs;
     String currentPhase="";long lastProgress;
     Engine(Path state,Inventory inventory,JSONObject config)throws Exception{this(state,inventory,config,true);}
     Engine(Path state,Inventory inventory,JSONObject config,boolean network)throws Exception{this.state=state;this.inventory=inventory;this.config=config;this.dav=network?new Dav(config):null;}
@@ -58,7 +59,8 @@ final class Engine {
                     Util.require(before.isRegularFile()&&after.isRegularFile()&&before.size()==after.size()&&before.lastModifiedTime().equals(after.lastModifiedTime())&&Objects.equals(before.fileKey(),after.fileKey()),"备份中源文件变化，将稍后重试: "+key);
                 }
                 String hash=Util.hash(spool);long size=Files.size(spool);e.put("hash",hash).put("size",size);
-                if(size>32L*1024*1024&&!dav.hasObject(hash,size))captureChunks(e,spool);else dav.queueObject(spool,hash,size);
+                if(packs!=null){if(size>CHUNK_SIZE)captureChunks(e,spool);else packs.add(spool,hash,size);}
+                else if(size>32L*1024*1024&&!dav.hasObject(hash,size))captureChunks(e,spool);else dav.queueObject(spool,hash,size);
                 if(System.currentTimeMillis()-lastProgress>=1000)progress(currentPhase);
             }finally{Files.deleteIfExists(spool);}
         }
@@ -68,7 +70,7 @@ final class Engine {
         }
     }
     JSONObject backup()throws Exception{
-        try{return backupContents();}finally{dav.closeUploads();}
+        try{return backupContents();}finally{try{if(packs!=null)packs.close();}finally{dav.closeUploads();}}
     }
     void captureChunks(JSONObject entry,Path file)throws Exception {
         JSONArray chunks=new JSONArray();Path part=file.resolveSibling("chunk");
@@ -78,7 +80,7 @@ final class Engine {
                 try(OutputStream out=Files.newOutputStream(part)){
                     while(size<CHUNK_SIZE){int n=in.read(buffer,0,Math.min(buffer.length,CHUNK_SIZE-size));if(n<0){ended=true;break;}out.write(buffer,0,n);size+=n;}
                 }
-                if(size>0){String hash=Util.hash(part);chunks.put(Util.obj("hash",hash,"size",size));dav.queueObject(part,hash,size);if(System.currentTimeMillis()-lastProgress>=1000)progress(currentPhase);}
+                if(size>0){String hash=Util.hash(part);chunks.put(Util.obj("hash",hash,"size",size));if(packs!=null)packs.add(part,hash,size);else dav.queueObject(part,hash,size);if(System.currentTimeMillis()-lastProgress>=1000)progress(currentPhase);}
             }
         }finally{Files.deleteIfExists(part);}
         entry.put("chunks",chunks);
@@ -88,6 +90,7 @@ final class Engine {
     }
     JSONObject backupContents()throws Exception{
         Util.mkdir(state);Util.delete(state.resolve("spool"));String vault=vault();dav.dirs("vaults/"+vault+"/snapshots");dav.dirs("objects");
+        if(!config.optBoolean("legacyObjects"))packs=new Packs(this);
         String initial=inventory.quick();List<Path> mods=inventory.modules();JSONObject lsp=inventory.lsposed();JSONArray packages=inventory.packages();
         inventory.warnSkipped(warnings);lsp.put("skippedUsers",inventory.skippedUsers);
         Lsp.warnMissing(lsp,packages,warnings);
@@ -123,7 +126,8 @@ final class Engine {
         dav.finishObjects();
         Util.require(initial.equals(inventory.quick()),"备份期间模块安装或 LSPosed 状态发生变化，稍后重试");
         String id=Long.toString(System.currentTimeMillis())+"-"+UUID.randomUUID().toString().substring(0,8);
-        JSONObject manifest=Util.obj("format",2,"id",id,"vault",vault,"created",System.currentTimeMillis(),"tool",Util.VERSION,"environment",inventory.environment(),"roots",roots,"entries",entries,"lsposed",lsp,"packages",packages,"skippedUsers",inventory.skippedUsers,"warnings",warnings);
+        JSONObject manifest=Util.obj("format",packs==null?2:3,"id",id,"vault",vault,"created",System.currentTimeMillis(),"tool",Util.VERSION,"environment",inventory.environment(),"roots",roots,"entries",entries,"lsposed",lsp,"packages",packages,"skippedUsers",inventory.skippedUsers,"warnings",warnings);
+        if(packs!=null)packs.manifest(manifest);
         String mount=inventory.metamodule();if(!mount.isEmpty()&&Files.exists(inventory.path("/data/adb/modules/"+mount+"/remove")))mount="";
         manifest.put("metamodule",mount);validate(manifest);
         // Publish the full logical inventory only after all incremental objects are durable and verified.
@@ -139,6 +143,21 @@ final class Engine {
         String p="vaults/"+vault+"/snapshots/"+id;byte[] b=dav.get(p+".json",64*1024*1024);String sha=new String(dav.get(p+".sha256",100),Util.UTF8).trim();Util.require(Util.hash(b).equals(sha),"恢复清单校验失败");
         JSONObject m=new JSONObject(new String(b,Util.UTF8));validate(m);Util.require(m.getString("vault").equals(vault)&&m.getString("id").equals(id),"备份清单身份不匹配");return m;
     }
+    JSONObject export(JSONObject m)throws Exception {
+        validate(m);Util.require(m.getString("id").matches("[0-9]+-[a-f0-9]{8}")&&m.getString("vault").matches("[a-zA-Z0-9_-]{1,80}"),"导出快照标识无效");
+        Path temp=state.resolve("export-stage"),output=state.resolve("exports").resolve(m.getString("id")+".zip"),partial=output.resolveSibling(output.getFileName()+".part");
+        Util.delete(temp);Util.mkdir(temp.resolve("objects"));Util.mkdir(output.getParent());progress("正在导出快照压缩包");
+        try{
+            Packs.download(this,m,temp);
+            try(ZipOutputStream zip=new ZipOutputStream(Files.newOutputStream(partial))){
+                zip.setLevel(Deflater.NO_COMPRESSION);String prefix="vaults/"+m.getString("vault")+"/snapshots/"+m.getString("id");byte[] manifest=Util.bytes(m);
+                for(String suffix:Arrays.asList(".json",".sha256")){zip.putNextEntry(new ZipEntry(prefix+suffix));zip.write(suffix.equals(".json")?manifest:Util.hash(manifest).getBytes(Util.UTF8));zip.closeEntry();}
+                Path folder=temp.resolve(m.getInt("format")==3?"packs":"objects");
+                try(DirectoryStream<Path> files=Files.newDirectoryStream(folder)){for(Path file:files){String name=file.getFileName().toString();zip.putNextEntry(new ZipEntry(m.getInt("format")==3?"packs/"+name:dav.objectPath(name)));Files.copy(file,zip);zip.closeEntry();}}
+            }
+            Files.move(partial,output,StandardCopyOption.REPLACE_EXISTING);JSONObject result=Util.obj("phase","导出完成","path",output.toString(),"bytes",Files.size(output),"sha256",Util.hash(output));Util.write(state.resolve("status.json"),result);return result;
+        }finally{Files.deleteIfExists(partial);Util.delete(temp);}
+    }
     static void validateRoot(JSONObject r)throws Exception{
         Util.require(r.getString("key").matches("[A-Za-z0-9_-]{1,160}"),"备份根标识无效");String kind=r.getString("kind"),p=r.getString("destination");JSONObject d=r.getJSONObject("detail");
         if(kind.equals("module")){String id=d.getString("id");Inventory.validId(id);Util.require(!id.equals(Util.ID)&&p.equals("/data/adb/modules/"+id),"模块目标路径无效");}
@@ -153,7 +172,7 @@ final class Engine {
         }else throw new IOException("未知备份根类型");
     }
     static void validate(JSONObject m)throws Exception{
-        Util.require(m.getInt("format")==1||m.getInt("format")==2,"不支持的备份格式");JSONArray rs=m.getJSONArray("roots"),es=m.getJSONArray("entries");Util.require(rs.length()<10000&&es.length()<=250000,"恢复清单超限");
+        Util.require(m.getInt("format")>=1&&m.getInt("format")<=3,"不支持的备份格式");JSONArray rs=m.getJSONArray("roots"),es=m.getJSONArray("entries");Util.require(rs.length()<10000&&es.length()<=250000,"恢复清单超限");
         Map<String,Long> objectSizes=new HashMap<>();
         Set<String> keys=new HashSet<>(),paths=new HashSet<>(),leaves=new HashSet<>(),destinations=new HashSet<>();
         for(int i=0;i<rs.length();i++){JSONObject r=rs.getJSONObject(i);validateRoot(r);Util.require(keys.add(r.getString("key")),"重复备份根");if(!r.getString("kind").equals("apk"))Util.require(destinations.add(r.getString("destination")),"重复恢复目标");}
@@ -167,7 +186,7 @@ final class Engine {
             Util.require(e.getInt("uid")>=0&&e.getInt("gid")>=0,"无效文件所有者");
             if(t.equals("file"))Util.require(e.getString("hash").matches("[0-9a-f]{64}")&&e.getLong("size")>=0&&e.getLong("size")<=32L*1024*1024*1024,"无效文件对象");
             if(e.has("chunks")){
-                Util.require(m.getInt("format")==2&&t.equals("file"),"分块仅用于第二版清单中的普通文件");JSONArray chunks=e.getJSONArray("chunks");Util.require(chunks.length()>0&&chunks.length()<=4096,"分块数量无效");long total=0;
+                Util.require(m.getInt("format")>=2&&t.equals("file"),"分块仅用于新版清单中的普通文件");JSONArray chunks=e.getJSONArray("chunks");Util.require(chunks.length()>0&&chunks.length()<=4096,"分块数量无效");long total=0;
                 for(int n=0;n<chunks.length();n++){JSONObject chunk=chunks.getJSONObject(n);Util.require(chunk.getString("hash").matches("[0-9a-f]{64}")&&chunk.getLong("size")>0&&chunk.getLong("size")<=CHUNK_SIZE,"分块内容无效");total+=chunk.getLong("size");}
                 Util.require(total==e.getLong("size"),"分块总大小与文件不符");
             }
@@ -175,6 +194,7 @@ final class Engine {
             if(t.equals("link"))Util.require(e.getString("target").indexOf('\0')<0,"无效链接");
         }
         for(String p:paths){for(int at=p.lastIndexOf('/');at>0;at=p.lastIndexOf('/',at-1))Util.require(!leaves.contains(p.substring(0,at)),"文件/链接不能包含子路径");}
+        if(m.getInt("format")==3)Packs.validate(m,objectSizes);
         for(String key:keys)Util.require(paths.contains(key+"/"),"备份根缺少目录或文件记录");
         String metamodule=m.optString("metamodule");if(!metamodule.isEmpty()){Inventory.validId(metamodule);Util.require(keys.contains("module-"+metamodule),"挂载引擎不在模块快照中");}
         Set<String> identities=new HashSet<>();JSONArray packages=m.getJSONArray("packages");for(int i=0;i<packages.length();i++){JSONObject pkg=packages.getJSONObject(i);Inventory.validPackage(pkg.getString("package"));int user=pkg.getInt("user");Util.require(user>=0&&user<10000&&pkg.getInt("uid")>=10000,"无效模块应用身份");Util.require(identities.add(pkg.getString("package")+":"+user),"重复模块应用身份");boolean hasApk=false;for(int n=0;n<rs.length();n++){JSONObject r=rs.getJSONObject(n);if(r.getString("kind").equals("apk")&&Restore.samePackage(r.getJSONObject("detail"),pkg))hasApk=true;}Util.require(hasApk,"模块应用缺少 APK 记录");}
@@ -187,9 +207,11 @@ final class Engine {
         if(!inventory.sandbox){String users=Util.run("/system/bin/pm","list","users");JSONArray pkgs=m.getJSONArray("packages");for(int i=0;i<pkgs.length();i++)if(!users.contains("UserInfo{"+pkgs.getJSONObject(i).getInt("user")+":"))blockers.put("请先建立 Android 用户 "+pkgs.getJSONObject(i).getInt("user"));}
         long bytes=0,assembly=0;Set<String> seen=new HashSet<>(),assembled=new HashSet<>();JSONArray es=m.getJSONArray("entries");for(int i=0;i<es.length();i++){JSONObject e=es.getJSONObject(i);if(!e.getString("type").equals("file"))continue;JSONArray objects=objects(e);for(int n=0;n<objects.length();n++){JSONObject o=objects.getJSONObject(n);if(seen.add(o.getString("hash")))bytes+=o.getLong("size");}if(e.has("chunks")&&assembled.add(e.getString("hash")))assembly+=e.getLong("size");}
         long expanded=0;for(int i=0;i<es.length();i++){JSONObject item=es.getJSONObject(i);if(item.getString("type").equals("file"))expanded+=item.getLong("size");}
-        if(state.toFile().getUsableSpace()<bytes+assembly+expanded*2+100*1024*1024)blockers.put("本地空间不足以暂存与回退");
+        long download=bytes;
+        if(m.getInt("format")==3){download=0;JSONObject packs=m.getJSONObject("packs");Iterator<String> keys=packs.keys();while(keys.hasNext())download+=packs.getJSONObject(keys.next()).getLong("size");}
+        if(state.toFile().getUsableSpace()<bytes+assembly+expanded*2+(m.getInt("format")==3?download:0)+100*1024*1024)blockers.put("本地空间不足以暂存与回退");
         Path update=inventory.path("/data/adb/modules_update");if(Files.isDirectory(update))try(DirectoryStream<Path>d=Files.newDirectoryStream(update)){for(Path p:d)if(!p.getFileName().toString().equals(Util.ID))blockers.put("已有待重启模块更新，请先重启");}
-        return Util.obj("id",m.getString("id"),"vault",m.getString("vault"),"roots",m.getJSONArray("roots").length(),"entries",es.length(),"downloadBytes",bytes,"blockers",blockers,"warnings",planWarnings,"requiresReboot",true);
+        return Util.obj("id",m.getString("id"),"vault",m.getString("vault"),"roots",m.getJSONArray("roots").length(),"entries",es.length(),"downloadBytes",download,"blockers",blockers,"warnings",planWarnings,"requiresReboot",true);
     }
     Path stage(JSONObject m)throws Exception{
         validate(m);Path stage=state.resolve("restore-stage");
@@ -197,14 +219,7 @@ final class Engine {
         Util.mkdir(stage);Util.write(stage.resolve("manifest.json"),m);Util.mkdir(stage.resolve("objects"));Util.mkdir(stage.resolve("roots"));progress("正在下载并校验恢复对象");
         JSONArray es=m.getJSONArray("entries"),rs=m.getJSONArray("roots");
         for(int i=0;i<rs.length();i++)Util.mkdir(stage.resolve("roots").resolve(rs.getJSONObject(i).getString("key")));
-        Set<String> seen=new HashSet<>();
-        for(int i=0;i<es.length();i++){
-            JSONObject e=es.getJSONObject(i);if(!e.getString("type").equals("file"))continue;JSONArray objects=objects(e);
-            for(int n=0;n<objects.length();n++){JSONObject object=objects.getJSONObject(n);if(!seen.add(object.getString("hash")))continue;Path p=stage.resolve("objects").resolve(object.getString("hash"));
-                if(!(Files.isRegularFile(p,LinkOption.NOFOLLOW_LINKS)&&Files.size(p)==object.getLong("size")&&Util.hash(p).equals(object.getString("hash"))))dav.verifyRemote(dav.objectPath(object.getString("hash")),object.getString("hash"),object.getLong("size"),p);
-            }
-            if(seen.size()%50==0)progress("恢复对象已校验 "+seen.size()+" 个");
-        }
+        Packs.download(this,m,stage);
         for(int i=0;i<es.length();i++){JSONObject e=es.getJSONObject(i);if(!e.has("chunks"))continue;Path complete=stage.resolve("objects").resolve(e.getString("hash"));if(Files.isRegularFile(complete,LinkOption.NOFOLLOW_LINKS)&&Files.size(complete)==e.getLong("size")&&Util.hash(complete).equals(e.getString("hash")))continue;
             Path temporary=complete.resolveSibling(complete.getFileName()+".assembling");
             try{try(OutputStream out=Files.newOutputStream(temporary)){JSONArray chunks=e.getJSONArray("chunks");for(int n=0;n<chunks.length();n++)Files.copy(stage.resolve("objects").resolve(chunks.getJSONObject(n).getString("hash")),out);}
