@@ -44,8 +44,14 @@ public final class Integration {
         db.execSQL("INSERT INTO modules VALUES ('test.module','/data/app/test/base.apk')");db.execSQL("INSERT INTO modules_state VALUES ('test.module',0,1,1)");db.execSQL("INSERT INTO scope VALUES ('test.module','android',0)");
         db.execSQL("INSERT INTO lspd_configs VALUES ('test',X'010203')");
         JSONObject config=Util.obj("url",args.length>0?args[0]:"http://127.0.0.1:18791/","allowHttp",true,"username","test","password","test","vault","fixture","extraPaths",new JSONArray(),"zipDirs",new JSONArray());
+        Map<Integer,Boolean> userStates=new TreeMap<>();userStates.put(0,true);userStates.put(10,false);
+        Inventory users=new Inventory(source,true){@Override Map<Integer,Boolean> userStates(){return userStates;}};
+        check(users.backupUsers().equals(Arrays.asList(0))&&users.skippedUsers.toString().equals("[10]"),"未解锁分身被跳过且主用户继续备份");
+        JSONArray userWarnings=new JSONArray();users.warnSkipped(userWarnings);check(userWarnings.length()==1&&userWarnings.getString(0).contains("10"),"跳过分身明确记录范围提示");
+        userStates.put(10,true);check(users.backupUsers().equals(Arrays.asList(0,10))&&users.skippedUsers.length()==0,"分身解锁后重新纳入备份范围");
         file(state.resolve("spool/upload-interrupted-process"),"orphaned temporary bytes");
-        Fixture inventory=new Fixture(source);Engine first=new Engine(state,inventory,config);JSONObject b1=first.backup();check(first.dav.uploadedObjects>0,"首次上传基线对象");
+        Fixture inventory=new Fixture(source);inventory.skippedUsers.put(10);Engine first=new Engine(state,inventory,config);JSONObject b1=first.backup();check(first.dav.uploadedObjects>0,"首次上传基线对象");
+        check(b1.getJSONArray("skippedUsers").toString().equals("[10]")&&first.manifest("fixture",b1.getString("id")).getJSONArray("skippedUsers").toString().equals("[10]"),"跳过用户保存在完成记录和NAS快照中");
         check(!Files.exists(state.resolve("spool/upload-interrupted-process")),"进程中断遗留的上传临时文件在重试前清理");
         Path html=base.resolve("proxy.html");file(html,"<!doctype html><html>original object</html>");String htmlHash=Util.hash(html);long htmlSize=Files.size(html);
         Dav htmlDav=new Dav(config);htmlDav.put("control/transform-html",new byte[0]);htmlDav.object(html,htmlHash,htmlSize);
@@ -130,6 +136,17 @@ public final class Integration {
         String objectPath=first.dav.objectPath(corrupt.getString("hash"));byte[] originalObject=first.dav.get(objectPath,1024*1024);first.dav.put(objectPath,new byte[(int)corrupt.getLong("size")]);
         rejects(()->new Engine(restoreState,new Fixture(target),config).stage(manifest),"NAS对象损坏阻止恢复");check(Files.exists(target.resolve("data/adb/modules/demo/before.txt")),"校验失败不改现有目标");
         first.dav.put(objectPath,originalObject);Path resumed=new Engine(restoreState,new Fixture(target),config).stage(manifest);check(Files.exists(resumed.resolve("roots/module-demo/module.prop")),"中断下载可复用暂存并继续恢复");
+        JSONObject partial=new JSONObject(manifest.getJSONObject("lsposed").toString());partial.put("skippedUsers",new JSONArray().put(10));
+        partial.getJSONObject("tables").getJSONArray("modules_state").put(Util.obj("module_pkg_name","test.module","user_id",10,"enabled",1,"scope_request_blocked",0));
+        partial.getJSONObject("tables").getJSONArray("scope").put(Util.obj("module_pkg_name","test.module","app_pkg_name","android","user_id",10));
+        Lsp.write(partial,state.resolve("skipped-modern.db"),Collections.singletonMap("test.module","/data/app/new/base.apk"));
+        JSONObject partialTables=Lsp.read(state.resolve("skipped-modern.db")).getJSONObject("tables");int primary=-1,clone=-1;
+        JSONArray partialStates=partialTables.getJSONArray("modules_state");for(int i=0;i<partialStates.length();i++){JSONObject row=partialStates.getJSONObject(i);if(row.getInt("user_id")==0)primary=row.getInt("enabled");if(row.getInt("user_id")==10)clone=row.getInt("enabled");}
+        check(primary==1&&clone==0&&partialTables.getJSONArray("scope").length()==2,"恢复保留分身作用域但禁用未备份用户且不影响主用户");
+        check(partial.getJSONObject("tables").getJSONArray("modules_state").getJSONObject(1).getInt("enabled")==1,"恢复不篡改快照记录的原始启用状态");
+        JSONObject partialLegacy=new JSONObject(old.toString()).put("skippedUsers",new JSONArray().put(10));partialLegacy.getJSONObject("tables").getJSONArray("scope").put(Util.obj("mid",1,"app_pkg_name","android","user_id",10));
+        Lsp.write(partialLegacy,state.resolve("skipped-legacy.db"),Collections.singletonMap("test.removed","/data/app/new/base.apk"));
+        check(Lsp.read(state.resolve("skipped-legacy.db")).getJSONObject("tables").getJSONArray("scope").length()==1,"旧版LSPosed不恢复未备份用户的作用域");
         db.close();configDb.close();JSONObject result=Util.obj("passed",passed,"checks",results,"device",Util.prop("ro.product.device"),"api",Util.prop("ro.build.version.sdk"));Util.write(base.resolve("result.json"),result);System.out.println(result);
     }
 }

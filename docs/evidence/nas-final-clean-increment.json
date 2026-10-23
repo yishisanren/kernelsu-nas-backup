@@ -1,0 +1,19 @@
+{
+  "previousSnapshot": "1792775940436-f0016d0a",
+  "snapshot": "1792776384522-4c4e4451",
+  "manifestHashesVerified": true,
+  "ordinaryFiles": 37430,
+  "unchangedFiles": 37420,
+  "changedOrAddedFiles": 10,
+  "removedFiles": 3,
+  "reusedContentObjects": 34822,
+  "newUniqueObjects": 10,
+  "newUniqueBytes": 27974956,
+  "allNewObjectsIndependentlyVerified": true,
+  "changedChunkedFilesReassembledAndVerified": 0,
+  "actualUploadedObjects": 10,
+  "actualUploadedBytes": 27974956,
+  "uploadsWithinNewContent": true,
+  "fixtureVersion": null,
+  "productionRestorePerformed": false
+}

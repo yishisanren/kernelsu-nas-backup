@@ -27,7 +27,8 @@ def main():
         config = json.load(f)
     base = urllib.parse.quote(config['url'].rstrip('/') + '/', safe=':/%')
     endpoint = urllib.parse.urlsplit(base)
-    assert endpoint.scheme == 'https' and endpoint.hostname and not endpoint.username
+    assert (endpoint.scheme == 'https' or (endpoint.scheme == 'http' and config.get('allowHttp') is True))
+    assert endpoint.hostname and not endpoint.username
     assert not endpoint.query and not endpoint.fragment
     auth = 'Basic ' + base64.b64encode((config['username'] + ':' + config['password']).encode()).decode()
     connections = threading.local()
@@ -37,8 +38,10 @@ def main():
         if size is not None and size > 0:
             headers['Range'] = 'bytes=0-' + str(size - 1)
         if not hasattr(connections, 'client'):
-            connections.client = http.client.HTTPSConnection(endpoint.hostname, endpoint.port, timeout=90,
-                                                            context=ssl.create_default_context())
+            connections.client = (http.client.HTTPSConnection(endpoint.hostname, endpoint.port, timeout=90,
+                                                             context=ssl.create_default_context())
+                                  if endpoint.scheme == 'https' else
+                                  http.client.HTTPConnection(endpoint.hostname, endpoint.port, timeout=90))
         connections.client.request('GET', endpoint.path + path, headers=headers)
         result = connections.client.getresponse()
         assert result.status in (200, 206), 'Unexpected NAS status %d; redirects are not followed' % result.status
@@ -116,7 +119,7 @@ def main():
               'verifiedBytes': total, 'allObjectsVerified': True,
               'chunkedFilesReassembledAndVerified': len(chunked_files),
               'roots': len(manifest['roots']), 'packageUserPairs': len(manifest['packages']),
-              'lsposedCounts': manifest['lsposed'].get('counts'),
+              'lsposedCounts': {name: len(rows) for name, rows in manifest['lsposed'].get('tables', {}).items()},
               'seconds': round(time.time() - started, 1), 'restorePerformed': False}
     with open(args.output, 'w') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)

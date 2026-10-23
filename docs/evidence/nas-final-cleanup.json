@@ -1,0 +1,13 @@
+{
+  "phonePrivateVerificationDataRemoved": true,
+  "phoneTemporaryArtifactsRemoved": true,
+  "fixtureLiveAndStagedAbsent": true,
+  "macPrivateCredentialDirectoryRemoved": true,
+  "privateScreenshotRemoved": true,
+  "productionRestorePhase": "none",
+  "autoBackupEnabled": true,
+  "httpExplicitlyEnabled": true,
+  "phoneConfigMode": "600",
+  "nasSnapshotsPreserved": true,
+  "finalSnapshot": "1792776384522-4c4e4451"
+}

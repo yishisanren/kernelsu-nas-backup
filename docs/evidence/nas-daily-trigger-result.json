@@ -1,0 +1,14 @@
+{
+  "snapshot": "1792775940436-f0016d0a",
+  "passed": true,
+  "automaticDaemonBackupCompleted": true,
+  "signatureUnchanged": true,
+  "signature": "ecda7feb3c45f840f171051ab8ee33b980fae5a4cb3998a19af3187d91a7cdcc",
+  "successfulScheduleTime": 1792775947647,
+  "uploadedObjects": 10,
+  "uploadedBytes": 27918019,
+  "manualBackupInvoked": false,
+  "systemClockChanged": false,
+  "real24HourObservation": false,
+  "method": "Only the plugin's last successful backup time was set more than 24 hours into the past. Its live daemon detected the due backup and completed it with the same source signature, then recorded the real completion time."
+}

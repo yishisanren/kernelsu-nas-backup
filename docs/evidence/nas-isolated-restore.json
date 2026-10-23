@@ -1,0 +1,16 @@
+{
+  "snapshot": "1792773728173-2b746bcd",
+  "passed": true,
+  "files": 37430,
+  "links": 4815,
+  "nodes": 8,
+  "metadataEntries": 48424,
+  "lsposedTables": 6,
+  "lsposedRows": 533,
+  "skippedUsers": [10],
+  "journalPhase": "complete",
+  "productionRestorePerformed": false,
+  "realRebootPerformed": false,
+  "apkInstallationSimulated": true,
+  "scope": "All NAS objects fetched and SHA-256 verified on Android; actual restore implementation executed against a private temporary target. File content, links, nodes, ownership, permissions, relevant xattrs and LSPosed database records verified."
+}

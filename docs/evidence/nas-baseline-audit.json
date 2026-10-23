@@ -1,0 +1,15 @@
+{
+  "snapshot": "1792773728173-2b746bcd",
+  "vault": "device-bb816658bd6afdea2e49",
+  "manifestSha256": "f33389015086e058f7a4f419193bc887fbab309208fefbf7edcfc3685f411a80",
+  "entries": 48535,
+  "uniqueObjects": 34822,
+  "verifiedBytes": 5036117889,
+  "allObjectsVerified": true,
+  "chunkedFilesReassembledAndVerified": 25,
+  "roots": 149,
+  "packageUserPairs": 31,
+  "lsposedCounts": {"modules": 33, "modules_state": 34, "scope": 110, "module_configs": 353, "app_configs": 0, "lspd_configs": 3},
+  "seconds": 221.8,
+  "restorePerformed": false
+}

@@ -1,0 +1,26 @@
+{
+  "snapshot": "1792773728173-2b746bcd",
+  "comparedEntries": 48535,
+  "same": 48520,
+  "changedSinceSnapshot": 15,
+  "missingSinceSnapshot": 0,
+  "newEntriesSinceSnapshot": 0,
+  "newModulesSinceSnapshot": 0,
+  "moduleStatesChanged": 0,
+  "lsposedTablesMatch": false,
+  "packageInventoryMatches": false,
+  "unreadable": 0,
+  "sqliteComparedViaConsistentCopy": 26,
+  "metadataChanged": 0,
+  "skippedUsers": [10],
+  "sourceIsLive": true,
+  "sourceModifiedByVerifier": false,
+  "followupInventory": {
+    "addedPackageUserPairs": 1,
+    "removedPackageUserPairs": 0,
+    "changedExistingPackageRecords": 0,
+    "lsposedModuleRowCountChanged": true,
+    "otherLsposedTableCountsUnchanged": true
+  },
+  "interpretation": "Live source changed after the snapshot. This is not a claim that all current source content equals the snapshot; NAS object integrity is audited separately."
+}

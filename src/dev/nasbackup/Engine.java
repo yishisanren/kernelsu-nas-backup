@@ -89,6 +89,7 @@ final class Engine {
     JSONObject backupContents()throws Exception{
         Util.mkdir(state);Util.delete(state.resolve("spool"));String vault=vault();dav.dirs("vaults/"+vault+"/snapshots");dav.dirs("objects");
         String initial=inventory.quick();List<Path> mods=inventory.modules();JSONObject lsp=inventory.lsposed();JSONArray packages=inventory.packages();
+        inventory.warnSkipped(warnings);lsp.put("skippedUsers",inventory.skippedUsers);
         Lsp.warnMissing(lsp,packages,warnings);
         if(!inventory.sandbox){Set<Integer> users=new HashSet<>();for(int i=0;i<packages.length();i++)users.add(packages.getJSONObject(i).getInt("user"));for(int user:users)Util.require(Util.unlocked(user),"请先解锁 Android 用户 "+user+"，避免遗漏加密配置");}
         for(Path p:mods){String id=p.getFileName().toString();if(inventory.removed(p))continue;
@@ -122,7 +123,7 @@ final class Engine {
         dav.finishObjects();
         Util.require(initial.equals(inventory.quick()),"备份期间模块安装或 LSPosed 状态发生变化，稍后重试");
         String id=Long.toString(System.currentTimeMillis())+"-"+UUID.randomUUID().toString().substring(0,8);
-        JSONObject manifest=Util.obj("format",2,"id",id,"vault",vault,"created",System.currentTimeMillis(),"tool",Util.VERSION,"environment",inventory.environment(),"roots",roots,"entries",entries,"lsposed",lsp,"packages",packages,"warnings",warnings);
+        JSONObject manifest=Util.obj("format",2,"id",id,"vault",vault,"created",System.currentTimeMillis(),"tool",Util.VERSION,"environment",inventory.environment(),"roots",roots,"entries",entries,"lsposed",lsp,"packages",packages,"skippedUsers",inventory.skippedUsers,"warnings",warnings);
         String mount=inventory.metamodule();if(!mount.isEmpty()&&Files.exists(inventory.path("/data/adb/modules/"+mount+"/remove")))mount="";
         manifest.put("metamodule",mount);validate(manifest);
         // Publish the full logical inventory only after all incremental objects are durable and verified.
@@ -130,7 +131,7 @@ final class Engine {
         Util.require(Util.hash(dav.get("vaults/"+vault+"/snapshots/"+id+".json",64*1024*1024)).equals(Util.hash(bytes)),"NAS 清单回读校验失败");
         dav.put("vaults/"+vault+"/device.json",Util.bytes(inventory.environment()));
         dav.put("vaults/"+vault+"/snapshots/"+id+".sha256",Util.hash(bytes).getBytes(Util.UTF8));
-        JSONObject result=Util.obj("phase","备份完成","id",id,"vault",vault,"files",entries.length(),"uploadedFiles",dav.uploadedObjects,"uploadedBytes",dav.uploadedBytes,"warnings",warnings,"time",System.currentTimeMillis());
+        JSONObject result=Util.obj("phase","备份完成","id",id,"vault",vault,"files",entries.length(),"uploadedFiles",dav.uploadedObjects,"uploadedBytes",dav.uploadedBytes,"skippedUsers",inventory.skippedUsers,"warnings",warnings,"time",System.currentTimeMillis());
         Util.write(state.resolve("last-backup.json"),result);Util.write(state.resolve("status.json"),result);return result;
     }
     JSONObject manifest(String vault,String id)throws Exception{

@@ -1,0 +1,10 @@
+{
+  "previousSnapshot": "1792775607428-8df0d3da",
+  "before": {"signature": "ecda7feb3c45f840f171051ab8ee33b980fae5a4cb3998a19af3187d91a7cdcc", "success": 1792775614685},
+  "after": {"signature": "ecda7feb3c45f840f171051ab8ee33b980fae5a4cb3998a19af3187d91a7cdcc", "success": 1792689204000},
+  "deviceTime": 1792775664000,
+  "changedOnlySuccessTime": true,
+  "systemClockChanged": false,
+  "manualBackupInvoked": false,
+  "real24HourObservation": false
+}

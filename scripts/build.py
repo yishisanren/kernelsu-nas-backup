@@ -7,7 +7,7 @@ JAVA = pathlib.Path(os.environ.get('JAVA_HOME', '/path/to/jdk21'))
 SDK = pathlib.Path(os.environ.get('ANDROID_HOME', os.environ.get('ANDROID_SDK_ROOT', '/path/to/android-sdk')))
 BUILD = ROOT / 'build'
 DIST = ROOT / 'dist'
-VERSION='0.1.0-beta.2'
+VERSION='0.1.0-beta.3'
 
 def entry(z,name,data,mode=0o644):
     info=zipfile.ZipInfo(name,(2026,10,21,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED

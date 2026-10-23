@@ -1,0 +1,18 @@
+{
+  "snapshot": "1792776384522-4c4e4451",
+  "comparedEntries": 48535,
+  "same": 48525,
+  "changedSinceSnapshot": 10,
+  "missingSinceSnapshot": 0,
+  "newEntriesSinceSnapshot": 0,
+  "newModulesSinceSnapshot": 0,
+  "moduleStatesChanged": 0,
+  "lsposedTablesMatch": true,
+  "packageInventoryMatches": true,
+  "unreadable": 0,
+  "sqliteComparedViaConsistentCopy": 26,
+  "metadataChanged": 0,
+  "skippedUsers": [10],
+  "sourceIsLive": true,
+  "sourceModifiedByVerifier": false
+}

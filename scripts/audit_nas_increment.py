@@ -26,9 +26,11 @@ for value in (args.previous, args.snapshot):
 with open(args.config) as f:
     config = json.load(f)
 endpoint = urllib.parse.urlsplit(urllib.parse.quote(config['url'].rstrip('/') + '/', safe=':/%'))
-assert endpoint.scheme == 'https' and not endpoint.username and not endpoint.query and not endpoint.fragment
+assert (endpoint.scheme == 'https' or (endpoint.scheme == 'http' and config.get('allowHttp') is True))
+assert endpoint.hostname and not endpoint.username and not endpoint.query and not endpoint.fragment
 auth = 'Basic ' + base64.b64encode((config['username'] + ':' + config['password']).encode()).decode()
-client = http.client.HTTPSConnection(endpoint.hostname, endpoint.port, timeout=90, context=ssl.create_default_context())
+client = (http.client.HTTPSConnection(endpoint.hostname, endpoint.port, timeout=90, context=ssl.create_default_context())
+          if endpoint.scheme == 'https' else http.client.HTTPConnection(endpoint.hostname, endpoint.port, timeout=90))
 
 
 def get(path, limit):
@@ -51,10 +53,12 @@ def read(snapshot):
 
 def inventory(manifest):
     files, objects = {}, {}
+    roots = {root['key']: (root['kind'], root['destination']) for root in manifest['roots']}
     for entry in manifest['entries']:
         if entry['type'] != 'file':
             continue
-        files[(entry['root'], entry['path'])] = entry['hash']
+        # Ordinal root keys can shift when packages are added; destinations remain stable.
+        files[(roots[entry['root']], entry['path'])] = entry['hash']
         refs = entry.get('chunks', [entry])
         assert sum(obj['size'] for obj in refs) == entry['size']
         for obj in refs:
@@ -89,12 +93,13 @@ def verify_object(digest, size, assembled=None):
 previous, current = read(args.previous), read(args.snapshot)
 old_files, old_objects = inventory(previous)
 files, objects = inventory(current)
+current_roots = {root['key']: (root['kind'], root['destination']) for root in current['roots']}
 new_hashes = objects.keys() - old_objects.keys()
 for digest in sorted(new_hashes):
     verify_object(digest, objects[digest])
 assembled_count = 0
 for entry in current['entries']:
-    if 'chunks' not in entry or old_files.get((entry['root'], entry['path'])) == entry['hash']:
+    if 'chunks' not in entry or old_files.get((current_roots[entry['root']], entry['path'])) == entry['hash']:
         continue
     md = hashlib.sha256()
     for obj in entry['chunks']:
@@ -106,7 +111,7 @@ fixture = next((r for r in current['roots'] if r['kind'] == 'module' and
 if args.fixture_version is not None:
     assert fixture and fixture['detail']['version'] == str(args.fixture_version)
     expected = hashlib.sha256(('nasbackup-validation-payload-v%d\n' % args.fixture_version).encode()).hexdigest()
-    assert files[(fixture['key'], 'payload.txt')] == expected
+    assert files[(current_roots[fixture['key']], 'payload.txt')] == expected
 if args.expect_no_fixture:
     assert fixture is None
 result = {

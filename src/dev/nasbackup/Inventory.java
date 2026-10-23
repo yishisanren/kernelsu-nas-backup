@@ -13,6 +13,7 @@ import java.util.zip.*;
 class Inventory {
     final Path root;
     final boolean sandbox;
+    JSONArray skippedUsers=new JSONArray();
     Inventory(Path root,boolean sandbox){this.root=root;this.sandbox=sandbox;}
     Path path(String p){return root.resolve(p.replaceFirst("^/",""));}
     JSONObject environment()throws Exception{
@@ -41,12 +42,24 @@ class Inventory {
         if(!Files.exists(p)){Util.require(moduleVersion("zygisk_lsposed").isEmpty(),"已安装 LSPosed，但配置数据库缺失");return Util.obj("present",false);}
         return Lsp.read(p);
     }
+    Map<Integer,Boolean> userStates()throws Exception{
+        Map<Integer,Boolean> result=new TreeMap<>();if(sandbox)return result;
+        Matcher users=Pattern.compile("UserInfo\\{(\\d+):").matcher(Util.run("/system/bin/pm","list","users"));
+        while(users.find()){int user=Integer.parseInt(users.group(1));result.put(user,Util.unlocked(user));}return result;
+    }
+    List<Integer> backupUsers()throws Exception{
+        skippedUsers=new JSONArray();List<Integer> ready=new ArrayList<>();
+        for(Map.Entry<Integer,Boolean> user:userStates().entrySet())if(user.getValue())ready.add(user.getKey());else skippedUsers.put(user.getKey());
+        return ready;
+    }
+    void warnSkipped(JSONArray warnings)throws Exception{
+        for(int i=0;i<skippedUsers.length();i++)warnings.put("跳过未解锁 Android 用户 "+skippedUsers.getInt(i)+"：未备份该用户的模块 APK 和应用配置；其 LSPosed 记录仅保留，恢复时不启用。");
+    }
     JSONArray packages()throws Exception{
         JSONArray out=new JSONArray();if(sandbox)return out;
         Set<String> registered=Lsp.missingApks(lsposed(),Collections.emptySet());
-        Matcher users=Pattern.compile("UserInfo\\{(\\d+):").matcher(Util.run("/system/bin/pm","list","users"));
-        while(users.find()){
-            int user=Integer.parseInt(users.group(1));String listing=Util.run("/system/bin/pm","list","packages","-f","-U","--user",Integer.toString(user));
+        for(int user:backupUsers()){
+            String listing=Util.run("/system/bin/pm","list","packages","-f","-U","--user",Integer.toString(user));
             for(String line:listing.split("\n")){
                 Matcher m=Pattern.compile("^package:(.+)=([^ ]+) uid:(\\d+).*$").matcher(line.trim());if(!m.matches())continue;
                 Path base=Paths.get(m.group(1));boolean module;
@@ -83,14 +96,15 @@ class Inventory {
     }
     String quick()throws Exception{
         StringBuilder s=new StringBuilder();for(Path p:modules()){s.append(p).append(Util.hash(p.resolve("module.prop"))).append(enabled(p)).append(removed(p));}s.append(metamodule());
-        if(!sandbox){Matcher users=Pattern.compile("UserInfo\\{(\\d+):").matcher(Util.run("/system/bin/pm","list","users"));while(users.find()){
-            String list=Util.run("/system/bin/pm","list","packages","-f","-U","--user",users.group(1));s.append(list);for(String line:list.split("\n")){int end=line.lastIndexOf("=");if(line.startsWith("package:")&&end>8){Path apk=Paths.get(line.substring(8,end));if(Files.exists(apk))s.append(Files.size(apk)).append(Files.getLastModifiedTime(apk).toMillis());}}
-        }}
+        for(Map.Entry<Integer,Boolean> user:userStates().entrySet()){
+            s.append("user:").append(user.getKey()).append(':').append(user.getValue());if(!user.getValue())continue;
+            String list=Util.run("/system/bin/pm","list","packages","-f","-U","--user",user.getKey().toString());s.append(list);for(String line:list.split("\n")){int end=line.lastIndexOf("=");if(line.startsWith("package:")&&end>8){Path apk=Paths.get(line.substring(8,end));if(Files.exists(apk))s.append(Files.size(apk)).append(Files.getLastModifiedTime(apk).toMillis());}}
+        }
         for(String suffix:Arrays.asList("","-wal")){Path wal=path("/data/adb/lspd/config/modules_config.db"+suffix);if(Files.exists(wal))s.append(Files.getLastModifiedTime(wal).toMillis()).append(Files.size(wal));}return Util.hash(s.toString().getBytes(Util.UTF8));
     }
     JSONObject inspect(JSONObject config)throws Exception{
         JSONArray warnings=new JSONArray();List<Path> mods=modules();JSONArray list=new JSONArray();for(Path p:mods)list.put(Util.obj("id",p.getFileName().toString(),"version",props(p.resolve("module.prop")).getProperty("version",""),"enabled",!Files.exists(p.resolve("disable"))));
-        JSONObject ls=lsposed();return Util.obj("environment",environment(),"modules",list,"packages",packages(),"lsposed",ls,"externalPaths",new JSONArray(external(mods,config,warnings)),"warnings",warnings);
+        JSONObject ls=lsposed();JSONArray pkgs=packages();warnSkipped(warnings);return Util.obj("environment",environment(),"modules",list,"packages",pkgs,"skippedUsers",skippedUsers,"lsposed",ls,"externalPaths",new JSONArray(external(mods,config,warnings)),"warnings",warnings);
     }
     static JSONObject meta(Path p)throws Exception{
         StructStat st=Os.lstat(p.toString());String type=OsConstants.S_ISLNK(st.st_mode)?"link":OsConstants.S_ISDIR(st.st_mode)?"dir":OsConstants.S_ISREG(st.st_mode)?"file":OsConstants.S_ISCHR(st.st_mode)?(st.st_rdev==0?"whiteout":"char"):OsConstants.S_ISSOCK(st.st_mode)?"socket":OsConstants.S_ISFIFO(st.st_mode)?"fifo":"unsupported";

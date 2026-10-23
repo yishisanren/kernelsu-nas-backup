@@ -56,15 +56,21 @@ final class Lsp {
         Map<String,String> ddl=variant.equals("modern")?CURRENT:LEGACY;
         JSONObject tables=snapshot.getJSONObject("tables");Set<String> names=new HashSet<>();tables.keys().forEachRemaining(names::add);Util.require(names.equals(ddl.keySet()),"LSPosed 表清单不完整");
         Set<String> missing=missingApks(snapshot,apkPaths.keySet());
+        Set<Integer> skipped=new HashSet<>();JSONArray skippedUsers=snapshot.optJSONArray("skippedUsers");
+        if(skippedUsers!=null)for(int i=0;i<skippedUsers.length();i++){int user=skippedUsers.getInt(i);Util.require(user>=0&&user<10000,"无效的跳过用户");skipped.add(user);}
         Util.mkdir(target.getParent());SQLiteDatabase db=Db.open(target,true);
         try {db.beginTransaction();for(String table:ddl.keySet())db.execSQL(ddl.get(table));
             for(String table:ddl.keySet()) {
                 Set<String> cols=new HashSet<>();try(Cursor c=db.rawQuery("PRAGMA table_info("+table+")",null)){while(c.moveToNext())cols.add(c.getString(1));}
                 JSONArray rows=tables.getJSONArray(table);for(int i=0;i<rows.length();i++){
-                    JSONObject row=rows.getJSONObject(i);List<String> columns=new ArrayList<>();List<Object> values=new ArrayList<>();Iterator<String> keys=row.keys();
+                    JSONObject row=rows.getJSONObject(i);
+                    // Legacy schemas have no per-user enable switch; omit only skipped users' scopes.
+                    if(variant.equals("legacy")&&table.equals("scope")&&skipped.contains(row.optInt("user_id",-1)))continue;
+                    List<String> columns=new ArrayList<>();List<Object> values=new ArrayList<>();Iterator<String> keys=row.keys();
                     while(keys.hasNext()){String k=keys.next();Util.require(cols.contains(k),"未知 LSPosed 字段");Object v=row.get(k);
                         if(k.equals("apk_path")){String pkg=row.getString("module_pkg_name");v=missing.contains(pkg)?unavailablePath(pkg):apkPaths.get(pkg);}
                         if(k.equals("enabled")&&(table.equals("modules")||table.equals("modules_state"))&&missing.contains(row.getString("module_pkg_name")))v=0;
+                        if(k.equals("enabled")&&table.equals("modules_state")&&skipped.contains(row.optInt("user_id",-1)))v=0;
                         columns.add("\""+k+"\"");values.add(v==JSONObject.NULL?null:v instanceof JSONObject?Base64.getDecoder().decode(((JSONObject)v).getString("blob")):v);
                     }
                     Util.require(!columns.isEmpty(),"空 LSPosed 数据记录");
