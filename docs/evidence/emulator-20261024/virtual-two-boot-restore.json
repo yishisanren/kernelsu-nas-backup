@@ -1,0 +1,36 @@
+{
+  "passed": true,
+  "environment": "disposable Android emulator",
+  "api": "35",
+  "prepare": {
+    "passed": true,
+    "checks": 11,
+    "phase": "awaiting-reboot",
+    "formalDownloadMilliseconds": 1679,
+    "extraPrefetchUsed": false,
+    "cleanTargetBeforeRestore": true,
+    "realPackageManagerInstall": true
+  },
+  "firstBoot": {
+    "passed": true,
+    "checks": 11,
+    "phase": "awaiting-final-reboot",
+    "networkRequiredAfterPrepare": false
+  },
+  "secondBoot": {
+    "passed": true,
+    "checks": 670,
+    "filesVerified": 126,
+    "phase": "complete",
+    "realEmulatorReboots": 2,
+    "realPackageManagerInstall": true,
+    "cacheDirectoryInodesPreserved": true,
+    "kernelSuStartupHookSimulated": true,
+    "lsposedRuntimeHookingTested": false,
+    "extraPrefetchUsed": false,
+    "physicalDeviceModified": false
+  },
+  "physicalDeviceModified": false,
+  "extraPrefetchUsed": false,
+  "frameworkStartupSimulated": true
+}

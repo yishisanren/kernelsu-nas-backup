@@ -1,6 +1,6 @@
 # NAS 模块备份
 
-通过 WebDAV 增量备份 KernelSU 与 LSPosed 模块环境，支持历史快照恢复和本机回退。当前版本：`0.1.0-beta.3`。
+通过 WebDAV 增量备份 KernelSU 与 LSPosed 模块环境，支持历史快照恢复和本机回退。当前版本：`0.1.0-beta.4`。
 
 安装 ZIP、源码 ZIP 和 SHA-256 校验文件见仓库 Releases。当前为预发布版本：已通过隔离测试、实际 WebUI、真实 NAS 完整备份回读及隔离模拟恢复；未执行恢复出厂后的整机恢复。
 
@@ -8,7 +8,7 @@
 
 ## 安装和备份
 
-1. 在 KernelSU 管理器中安装 `nas-module-backup-0.1.0-beta.3.zip`，按管理器提示重启。
+1. 在 KernelSU 管理器中安装 `nas-module-backup-0.1.0-beta.4.zip`，按管理器提示重启。
 2. 打开模块 WebUI，填写 NAS 的 WebDAV 目录、用户名和密码，保存并测试连接。
 3. 点“检查备份范围”。原 ZIP 默认在主用户的 Download 目录查找，可补充搜索目录和 `/data/adb` 下的外部配置路径。
 4. 点“立即增量备份”。开启自动备份后，每分钟检查模块及 LSPosed 状态，变化稳定约一分钟后备份；至少每 24 小时补查一次，失败约 5 分钟后重试。

@@ -62,7 +62,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             href='/'+str(f.relative_to(ROOT))+('/' if f.is_dir() else '')
             body.append('<d:response><d:href>'+xml.sax.saxutils.escape(href)+'</d:href><d:propstat><d:prop><d:resourcetype/></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>')
         body.append('</d:multistatus>');self.reply(207,''.join(body).encode(),**{'Content-Type':'application/xml'})
-server=http.server.ThreadingHTTPServer(('127.0.0.1',args.port),Handler)
+class Server(http.server.ThreadingHTTPServer):
+    request_queue_size=64  # The fixture must accept the production uploader's 16 concurrent requests.
+server=Server(('127.0.0.1',args.port),Handler)
 if args.cert:
     context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.load_cert_chain(args.cert,args.key);server.socket=context.wrap_socket(server.socket,server_side=True)
 print(json.dumps({'ready':True,'port':args.port}),flush=True)

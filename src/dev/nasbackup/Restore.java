@@ -142,7 +142,7 @@ final class Restore {
             if(appOp==null){boolean hadRoot=Files.isDirectory(to);if(!hadRoot&&kind.equals("app_external")){Util.mkdir(to);Engine.metadata(to,rootEntry(m,key),uids(j));}
                 Util.require(Files.isDirectory(to),"模块应用的加密数据目录尚未建立: "+pkg);copyTree(to,saved);appOp=Util.obj("key",key,"target",to.toString(),"saved",saved.toString(),"hadRoot",hadRoot,"done",false);operations.put(appOp);save(j);}
             // Preserve the Android-created FBE directory inode, owner, and encryption policy.
-            clearChildren(to);copyChildren(payload(m,r),to);applyMeta(m,r,to,uids(j),true);
+            clearAppChildren(to);copyAppChildren(payload(m,r),to);applyMeta(m,r,to,uids(j),true);
             if(!inv.sandbox)Util.run("/system/bin/restorecon","-RF",to.toString());appOp.put("done",true);save(j);
         }
         j.put("phase","awaiting-final-reboot").put("boot",boot());save(j);
@@ -183,7 +183,7 @@ final class Restore {
         JSONObject j=status();if(!j.getString("phase").equals("rollback-unlock"))return;
         JSONArray apps=j.getJSONArray("appMoves");for(int i=apps.length()-1;i>=0;i--){JSONObject op=apps.getJSONObject(i);if(op.optBoolean("rolledBack"))continue;Path to=Paths.get(op.getString("target"));
             if(!inv.sandbox){String pkg=to.getFileName().toString();String[] parts=to.toString().split("/");String user=parts[3];if(!Util.unlocked(Integer.parseInt(user)))return;Util.run("/system/bin/am","force-stop","--user",user,pkg);}
-            if(!op.optBoolean("hadRoot",true))Util.delete(to);else{clearChildren(to);copyChildren(Paths.get(op.getString("saved")),to);if(!inv.sandbox)Util.run("/system/bin/restorecon","-RF",to.toString());}op.put("rolledBack",true);save(j);
+            if(!op.optBoolean("hadRoot",true))Util.delete(to);else{clearAppChildren(to);copyAppChildren(Paths.get(op.getString("saved")),to);if(!inv.sandbox)Util.run("/system/bin/restorecon","-RF",to.toString());}op.put("rolledBack",true);save(j);
         }
         JSONArray pkgs=j.getJSONArray("newPackages");for(int i=0;i<pkgs.length();i++){JSONObject p=pkgs.getJSONObject(i);if(!inv.sandbox&&!p.optBoolean("removed")){String result=Util.run("/system/bin/pm","uninstall","--user",p.getInt("user")+"",p.getString("package"));Util.require(result.contains("Success")||apkPaths(p.getString("package"),p.getInt("user")).isEmpty(),"回退卸载失败");p.put("removed",true);save(j);}}
         j.put("phase",j.optBoolean("rollbackDbPrepared")?"rollback-final-reboot":"rolled-back");save(j);
@@ -192,7 +192,15 @@ final class Restore {
         String p=status().getString("phase");Util.require(Arrays.asList("none","complete","rolled-back","cancelled").contains(p),"恢复进行中，不能清理");
         for(String name:Arrays.asList("restore-stage","rollback","rollback-apps","rollback-lsp"))Util.delete(state.resolve(name));Files.deleteIfExists(journal);
     }
-    static void clearChildren(Path p)throws Exception{try(DirectoryStream<Path> d=Files.newDirectoryStream(p)){for(Path c:d)Util.delete(c);}}
+    static boolean appCache(Path p){return Arrays.asList("cache","code_cache").contains(p.getFileName().toString());}
+    static void clearAppChildren(Path p)throws Exception{
+        try(DirectoryStream<Path> d=Files.newDirectoryStream(p)){for(Path c:d){
+            // Android stores cache inode numbers on the app root; do not let restored data reuse them.
+            if(appCache(c)&&Files.isDirectory(c,LinkOption.NOFOLLOW_LINKS))try(DirectoryStream<Path> cache=Files.newDirectoryStream(c)){for(Path child:cache)Util.delete(child);}
+            else Util.delete(c);
+        }}
+    }
+    static void copyAppChildren(Path from,Path to)throws Exception{try(DirectoryStream<Path> d=Files.newDirectoryStream(from)){for(Path p:d)if(!appCache(p))copyTree(p,to.resolve(p.getFileName()));}}
     static void copyChildren(Path from,Path to)throws Exception{try(DirectoryStream<Path>d=Files.newDirectoryStream(from)){for(Path p:d)copyTree(p,to.resolve(p.getFileName()));}}
     static void copyTree(Path from,Path to)throws Exception {
         JSONObject meta=Inventory.meta(from);String type=meta.getString("type");

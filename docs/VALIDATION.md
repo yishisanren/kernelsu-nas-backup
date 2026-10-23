@@ -1,6 +1,6 @@
 # 验证记录
 
-版本：0.1.0-beta.3。日期：2026-10-24。交付定位：针对当前手机环境的可安装 Beta；未宣称完成恢复出厂后的整机恢复验收。
+版本：0.1.0-beta.4。日期：2026-10-24。交付定位：备份已实测，恢复经过隔离目录及一次性 Android 模拟器验证的 Beta；不要求对用户手机覆盖恢复。beta.4 修复由模拟器重启测试发现的应用缓存 inode 问题，未安装到实体手机。
 
 本仓库保留脱敏后的统计与检查结果，实机截图和私人连接信息不随源码发布。2026-10-24 按用户要求继续验收，并允许跳过未解锁的系统分身。
 
@@ -20,7 +20,7 @@
 
 ## 已通过的验证
 
-Android 隔离集成测试 **70 项通过**，WebUI 模拟 KernelSU 桥接测试 **12 项通过**。逐项结果见 [Android 日志](evidence/android-integration.log)、[汇总 JSON](evidence/isolated-summary.json) 和 [WebUI 结果](evidence/webui.json)。首次回归在故障注入后的回环连接遇到 EOF；重建隔离服务器后完整回归通过，没有更改生产网络重试逻辑来掩盖错误。
+beta.3 在手机上的 Android 隔离集成测试 **70 项通过**，WebUI 模拟 KernelSU 桥接测试 **12 项通过**。逐项结果见 [Android 日志](evidence/android-integration.log)、[汇总 JSON](evidence/isolated-summary.json) 和 [WebUI 结果](evidence/webui.json)。首次回归在故障注入后的回环连接遇到 EOF；重建隔离服务器后完整回归通过，没有更改生产网络重试逻辑来掩盖错误。beta.4 的模拟器验证见下一节。
 
 | 范围 | 验证结果 |
 | --- | --- |
@@ -48,7 +48,23 @@ Android 隔离集成测试 **70 项通过**，WebUI 模拟 KernelSU 桥接测试
 
 ZIP 已检查 CRC、必需入口、shell 语法、执行权限、源码内容一致性，以及发布 dex 不含 tests/java 下的任何测试入口。具体包大小与 SHA-256 见 [包检查结果](evidence/package.json) 和交付目录的 `SHA256SUMS.txt`。
 
-## 真实数据完整备份补测
+## 一次性 Android 模拟器恢复
+
+按用户要求，后续恢复验收在模拟环境进行，不以用户手机覆盖恢复作为验收条件。本轮只对实体手机读取过 ADB 设备列表，没有安装模块、恢复、重启或更改其配置。没有向模拟器复制真实 NAS 凭据或私人备份数据。
+
+使用独立 Android 15 / API 35 arm64 Google APIs 模拟器。73 项 Android 集成检查、12 项 WebUI 检查，以及真实 PackageManager 的 split APK 安装、包名校验、CE/DE/外部数据恢复与回退均通过。包含 NAS 对象损坏拒绝、下载失败后复用暂存继续、应用阶段中断回退、UID 映射、权限与链接和 LSPosed 状态/作用域。逐项记录见 [模拟器汇总](evidence/emulator-20261024/isolated-summary.json)。
+
+另执行空目标恢复：建立带应用配置和六表 LSPosed 数据的测试备份，卸载测试 APK 并删除源模块及配置；从空恢复暂存直接调用正式 Restore.prepare 下载、验证并重新安装 APK，没有调用额外的并行预下载。首次实际重启模拟器后，以离线 Engine 执行系统配置、应用数据恢复，再次实际重启模拟器完成启用状态恢复。两次同启动阶段越过重启门禁的尝试均被拒绝。最终 126 个普通文件及权限、UID/GID、相对链接、FIFO、应用配置、APK 路径、启用状态、作用域和 BLOB 均通过，共 670 项最终断言；恢复后的测试模块脚本可以运行。正式准备阶段耗时 1,679 毫秒，此为小型合成数据，不能推算 5 GB 真实备份的恢复速度。见 [跨两次重启结果](evidence/emulator-20261024/virtual-two-boot-restore.json)。
+
+首次用 beta.3 实测时，第二次重启后出现 CE shared_prefs 的 GID 从应用组变为缓存组、目录权限被改写。根因是恢复保留应用根目录，却删除 cache/code_cache，Android 根目录记录的旧缓存 inode 可能被恢复的配置目录复用；installd 在启动时据此将其识别为缓存。该机制对应 [AOSP fixupAppData](https://android.googlesource.com/platform/frameworks/native/+/refs/heads/main/cmds/installd/InstalldNativeService.cpp)。beta.4 在恢复与回退时都保留系统创建的缓存目录 inode，只清空其内容，不覆盖为旧缓存目录；新增恢复、清空缓存及回退三项 inode 回归，并在两次实际模拟器重启后保持严格 GID 和权限断言通过。见 [修复前失败记录](evidence/emulator-20261024/pre-fix-failure.json)。
+
+测试夹具曾出现 HTTP EOF，将监听队列从默认的 5 扩为 64 以匹配 16 路上传，重新完整回归通过；未修改生产下载或网络重试来绕过该错误。另一次回归被上一轮失败留下的专用测试 APK 拒绝保护拦截，清理模拟器内该测试数据后重新完整通过。
+
+KernelSU 启动钩子由测试驱动调用相同阶段代码模拟；LSPosed 使用真实 SQLite 六表并核验内容，但没有运行 LSPosed 注入框架，不能声称所有第三方模块 Hook 行为已验证。两次模拟器重启、PackageManager 安装、文件恢复和 UID/GID 检查是真实执行。模拟器及其专用磁盘在测试后删除。备份存储格式仍为原格式，没有实施压缩分包改版。
+
+复现需准备一次性可 adb root 的 Android 模拟器：先运行 scripts/verify_device.py --serial emulator-PORT --root-shell --report-dir OUTPUT，然后运行 scripts/verify_virtual_restore.py --serial emulator-PORT --report-dir OUTPUT。脚本拒绝实体设备序列号和非模拟器属性。
+
+## 真实数据完整备份补测（beta.3 及之前）
 
 用户明确授权后，现用手机的模块与配置经 USB 回环上传至本机私有临时 WebDAV，未发送到互联网。首轮途中手机断开并重启，留下一个半写对象，未发布不完整快照。重连、解锁机主及系统分身后重试，复用已有内容，仅补传 61 个对象、379,062,791 字节，成功生成完整快照。半写对象已修复。
 

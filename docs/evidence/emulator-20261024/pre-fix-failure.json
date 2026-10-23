@@ -1,0 +1,13 @@
+{
+  "environment": "disposable Android API 35 emulator",
+  "productionVersionTested": "0.1.0-beta.3",
+  "passed": false,
+  "failure": "GID mismatch after the second emulator reboot",
+  "expectedAppGid": 10209,
+  "actualCeSharedPreferencesGid": 20209,
+  "deSharedPreferencesGid": 10209,
+  "rootCause": "Deleting Android-managed cache directories while preserving the app root leaves cached inode references on that root. A restored preferences directory can reuse a deleted cache inode and be classified as cache by installd during boot, which changes its GID and permissions.",
+  "fix": "During app restore and rollback, keep cache and code_cache directory inodes and metadata, clear only their contents, and do not copy old cache directory metadata over them.",
+  "sourceReference": "https://android.googlesource.com/platform/frameworks/native/+/refs/heads/main/cmds/installd/InstalldNativeService.cpp",
+  "physicalDeviceModified": false
+}

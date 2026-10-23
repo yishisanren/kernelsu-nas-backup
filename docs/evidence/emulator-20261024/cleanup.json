@@ -1,0 +1,9 @@
+{
+  "emulatorStopped": true,
+  "privateAvdRemoved": true,
+  "testWebDavStorageRemoved": true,
+  "testWebDavServersStopped": true,
+  "physicalDeviceModified": false,
+  "realNasCredentialsCopiedToEmulator": false,
+  "originalBeta3ArchivePreserved": true
+}

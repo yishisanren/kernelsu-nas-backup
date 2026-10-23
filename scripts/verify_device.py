@@ -2,14 +2,18 @@
 """Reproducible isolated Android verification; never backs up real installed app data."""
 import argparse,json,pathlib,subprocess,tempfile,time,shutil,sys
 from build import ROOT,BUILD
-parser=argparse.ArgumentParser();parser.add_argument('--serial',required=True);args=parser.parse_args()
-adb=['adb','-s',args.serial];report=ROOT/'docs/evidence';report.mkdir(parents=True,exist_ok=True)
+parser=argparse.ArgumentParser();parser.add_argument('--serial',required=True);parser.add_argument('--root-shell',action='store_true');parser.add_argument('--report-dir',type=pathlib.Path);args=parser.parse_args()
+adb=['adb','-s',args.serial];report=args.report_dir or ROOT/'docs/evidence';report.mkdir(parents=True,exist_ok=True)
 def run(argv):
     result=subprocess.run(argv,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
     if result.returncode:print(result.stdout,file=sys.stderr)
     result.check_returncode()
     return result.stdout
-def phone(command):return run(adb+['shell',"su -M -W -c '"+command+"'"])
+def phone(command):return run(adb+['shell',command if args.root_shell else "su -M -W -c '"+command+"'"])
+if args.root_shell:
+    assert args.serial.startswith('emulator-'), 'Root-shell mode is for disposable emulators only'
+    assert phone('getprop ro.kernel.qemu').strip()=='1'
+    assert phone('id -u').strip()=='0'
 def test(name):return phone('CLASSPATH=/data/local/tmp/nasbackup-probe-20261021.jar app_process /system/bin dev.nasbackup.'+name)
 run([sys.executable,str(ROOT/'scripts/build.py')]);run([sys.executable,str(ROOT/'scripts/build_fixture.py')])
 temp=pathlib.Path(tempfile.mkdtemp(prefix='nasbackup-isolated-'));server=None;tls=None

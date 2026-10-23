@@ -101,6 +101,7 @@ public final class Integration {
         Engine retry=new Engine(state,inventory,config);retry.backup();check(retry.dav.uploadedObjects==1,"重试修复半写对象且复用已有文件");
         Path target=base.resolve("target"),restoreState=base.resolve("restore-state");Util.mkdir(restoreState);
         file(target.resolve("data/adb/modules/demo/before.txt"),"before restore");file(target.resolve("data/adb/demo_config/before.txt"),"old config");file(target.resolve("data/user/0/test.module/original.txt"),"original app");
+        Path cache=target.resolve("data/user/0/test.module/cache"),codeCache=target.resolve("data/user/0/test.module/code_cache");file(cache.resolve("old"),"stale");file(codeCache.resolve("old"),"stale");long cacheInode=Os.stat(cache.toString()).st_ino,codeCacheInode=Os.stat(codeCache.toString()).st_ino;
         Lsp.write(manifest.getJSONObject("lsposed"),target.resolve("data/adb/lspd/config/modules_config.db"),Collections.singletonMap("test.module","/data/app/prior/base.apk"));
         Engine re=new Engine(restoreState,new Fixture(target),config);Restore restore=new Restore(re);restore.prepare(manifest);check(restore.status().getString("phase").equals("awaiting-reboot"),"恢复准备完成并等待重启");
         new Restore(new Engine(restoreState,new Fixture(target),new JSONObject(),false)).early();restore.finishApps();check(new String(Files.readAllBytes(target.resolve("data/adb/modules/demo/old.txt")),Util.UTF8).equals("first"),"离线启动阶段无需NAS配置即可还原内容");
@@ -111,12 +112,15 @@ public final class Integration {
         check((Os.stat(target.resolve("data/adb/modules/demo/service.sh").toString()).st_mode&0777)==0755,"脚本执行权限还原");
         check(Inventory.meta(target.resolve("data/adb/modules/demo/null")).getString("type").equals("char")&&Inventory.meta(target.resolve("data/adb/modules/demo/pipe")).getString("type").equals("fifo"),"普通设备节点及FIFO还原");
         check(Files.exists(target.resolve("data/user/0/test.module/shared_prefs/a.xml"))&&!Files.exists(target.resolve("data/user/0/test.module/cache/ignored")),"应用配置恢复并排除缓存");
+        check(Os.stat(cache.toString()).st_ino==cacheInode&&Os.stat(codeCache.toString()).st_ino==codeCacheInode,"恢复保留Android缓存目录inode避免配置被误认缓存");
+        check(!Files.exists(cache.resolve("old"))&&!Files.exists(codeCache.resolve("old")),"恢复清空旧缓存内容但保留缓存目录");
         SQLiteDatabase restoredDb=Db.open(target.resolve("data/adb/demo_config/prefs.db"),false);try(Cursor cursor=restoredDb.rawQuery("SELECT v FROM preferences WHERE k='fixture'",null)){check(cursor.moveToFirst()&&cursor.getString(0).equals("WAL value"),"普通配置SQLite包含WAL并可独立恢复");}restoredDb.close();
         JSONObject lsp=Lsp.read(target.resolve("data/adb/lspd/config/modules_config.db"));check(lsp.getJSONObject("tables").getJSONArray("modules_state").getJSONObject(0).getInt("enabled")==0,"应用配置恢复完成前暂停LSPosed模块");
         restore.early();lsp=Lsp.read(target.resolve("data/adb/lspd/config/modules_config.db"));check(lsp.getJSONObject("tables").getJSONArray("modules_state").getJSONObject(0).getInt("enabled")==1&&restore.status().getString("phase").equals("complete"),"最终重启恢复LSPosed启用及作用域");
         check(lsp.getJSONObject("tables").getJSONArray("modules").getJSONObject(0).getString("apk_path").equals("/data/app/test/test.module/base.apk"),"重建APK安装路径");
         restore.requestRollback();restore.early();restore.rollbackApps();check(Files.exists(target.resolve("data/adb/modules/demo/before.txt"))&&!Files.exists(target.resolve("data/adb/modules/demo/old.txt")),"模块回退到恢复前内容");
         check(Files.exists(target.resolve("data/user/0/test.module/original.txt"))&&!Files.exists(target.resolve("data/user/0/test.module/shared_prefs/a.xml")),"应用配置回退");
+        check(Os.stat(cache.toString()).st_ino==cacheInode&&Os.stat(codeCache.toString()).st_ino==codeCacheInode,"回退同样保留Android缓存目录inode");
         check(!Files.exists(target.resolve("data/adb/metamodule"),LinkOption.NOFOLLOW_LINKS),"回退清理本次新建挂载入口");
         check(restore.status().getString("phase").equals("rollback-final-reboot"),"回退应用数据后等待重新启用模块");restore.early();
         check(Lsp.read(target.resolve("data/adb/lspd/config/modules_config.db")).getJSONObject("tables").getJSONArray("modules").getJSONObject(0).getString("apk_path").equals("/data/app/prior/base.apk"),"回退还原原始LSPosed数据库");
