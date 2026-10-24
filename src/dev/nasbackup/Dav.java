@@ -12,8 +12,10 @@ import org.w3c.dom.*;
 
 final class Dav {
     final String base,auth;
-    final OkHttpClient client=new OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
+    static final OkHttpClient SHARED=new OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
         .connectTimeout(15,TimeUnit.SECONDS).readTimeout(60,TimeUnit.SECONDS).writeTimeout(60,TimeUnit.SECONDS).build();
+    final OkHttpClient client=SHARED,probeClient=SHARED.newBuilder().connectTimeout(3,TimeUnit.SECONDS).readTimeout(3,TimeUnit.SECONDS).callTimeout(5,TimeUnit.SECONDS).build();
+    String repositoryId="";
     volatile long uploadedBytes;volatile int uploadedObjects;
     final Set<String> directories=new HashSet<>(),queuedHashes=new HashSet<>();
     final ArrayDeque<Future<?>> pending=new ArrayDeque<>();
@@ -33,10 +35,15 @@ final class Dav {
         return new Request.Builder().url(base+path).header("Authorization",auth).header("Accept-Encoding","identity");
     }
     Reply request(String method,String path,byte[] body,Map<String,String> headers,int limit)throws Exception {
+        return request(client,method,path,body,headers,limit);
+    }
+    Reply probe(String method,String path,byte[] body,Map<String,String> headers,int limit)throws Exception{return request(probeClient,method,path,body,headers,limit);}
+    void checkRepository()throws Exception {if(!repositoryId.isEmpty())Util.require(repositoryId.equals(Connection.marker(this)),"任务期间备份库标识改变，已停止提交");}
+    Reply request(OkHttpClient transport,String method,String path,byte[] body,Map<String,String> headers,int limit)throws Exception {
         Request.Builder b=builder(path);for(Map.Entry<String,String> h:headers.entrySet())b.header(h.getKey(),h.getValue());
         if(body==null&&Arrays.asList("PUT","PROPFIND").contains(method))body=new byte[0];
         b.method(method,body==null?null:RequestBody.create(MediaType.get("application/octet-stream"),body));
-        try(Response response=client.newCall(b.build()).execute()) {
+        try(Response response=transport.newCall(b.build()).execute()) {
             Reply r=new Reply();r.code=response.code();r.headers=response.headers().toMultimap();
             Util.require(r.code<300||r.code>=400,"NAS 返回重定向；请填写最终地址");
             ByteArrayOutputStream out=new ByteArrayOutputStream();

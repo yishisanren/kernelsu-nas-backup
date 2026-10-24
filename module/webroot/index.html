@@ -1,8 +1,94 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self' data:"><title>NAS 模块备份</title><link rel="stylesheet" href="style.css"></head>
-<body><main><header><span class="eyebrow">KERNELSU · NAS</span><h1>模块备份</h1><p>保存模块环境，从 NAS 找回。</p></header>
-<section class="card"><h2>当前状态</h2><p id="status" role="status" aria-live="polite">正在读取…</p><p id="restoreState"></p><p id="lastBackup" class="muted"></p><div class="actions"><button id="backup">立即增量备份</button><button id="inspect" class="secondary">检查备份范围</button></div><pre id="inventory" hidden></pre></section>
-<section class="card"><h2>连接 NAS</h2><form id="settings"><label>WebDAV 地址<input id="url" type="url" required placeholder="https://nas.example.com/backup/"></label><label>用户名<input id="username" autocomplete="username"></label><label>密码<input id="password" type="password" autocomplete="new-password" placeholder="已保存时留空不修改"></label><label class="check"><input id="allowHttp" type="checkbox">允许 HTTP（账号和备份内容会明文传输）</label><label class="check"><input id="auto" type="checkbox" checked>自动备份：变化后检查，每日补查，失败重试</label><details><summary>备份范围设置</summary><label>原 ZIP 搜索目录（每行一个）<textarea id="zipDirs" placeholder="/storage/emulated/0/Download"></textarea></label><label>附加配置路径（每行一个）<textarea id="extraPaths" placeholder="/data/adb/your_module_config"></textarea></label><p class="muted">自动收集模块目录、脚本引用的外部配置和 LSPosed 模块数据。自定义路径可在这里补充。</p></details><div class="actions"><button type="submit">保存设置</button><button type="button" id="test" class="secondary">测试连接</button></div></form><p id="message" role="status"></p></section>
-<section class="card"><div class="row"><h2>历史快照</h2><button id="history" class="secondary">刷新</button></div><p class="muted">首次备份建立压缩分包基线；后续只把新增内容写入新包，每个快照可独立恢复。导出可将所选快照及所需数据合成一个 ZIP，保存在本机私有备份目录。</p><label>选择快照<select id="snapshots"><option value="">先刷新快照列表</option></select></label><div class="actions"><button id="plan" class="secondary">检查恢复条件</button><button id="export" class="secondary">导出快照 ZIP</button></div><pre id="planInfo" hidden></pre><div id="confirmBox" hidden><p class="warning">恢复会安装模块应用并替换备份范围内的配置。先准备数据，再重启应用系统配置；解锁后恢复应用数据，最后再次重启。旧数据保留到手动清理。</p><label class="check"><input id="agree" type="checkbox">已确认快照和恢复范围，开始恢复</label><button id="restore" disabled>恢复这个快照</button></div></section>
-<section class="card"><h2>恢复与回退</h2><p class="muted">恢复进行中会暂停自动备份。需要重启时请手动重启；本模块不会自动重启手机。</p><div class="actions"><button id="rollback" class="secondary">回退本次恢复</button><button id="clean" class="secondary">清理本机恢复暂存</button></div><p class="muted">清理会删除本机回退副本，保留 NAS 历史快照。恢复出厂后需先恢复 KernelSU / Root；普通作用域目标应用需自行安装。硬件密钥绑定的配置可能需要重新设置。</p></section>
-<footer>0.1.0-beta.4 · 适配同设备、同系统及 Root 环境</footer></main><script src="app.js"></script></body></html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self' data:">
+  <title>NAS 模块备份</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#content">跳到内容</a>
+<svg class="icon-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
+  <symbol id="i-stack" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10H3V10Zm6 10v-7h6v7"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="8" cy="7" r="3"/><circle cx="16" cy="17" r="3"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v6h16v-6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 10a8 8 0 1 0-2 8M20 4v6h-6"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M2 8a16 16 0 0 1 20 0M5 12a11 11 0 0 1 14 0M9 16a5 5 0 0 1 6 0"/><circle cx="12" cy="20" r=".5"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-save" viewBox="0 0 24 24"><path d="M4 3h13l3 3v15H4V3Zm3 0v7h10V3M8 21v-7h8v7"/></symbol>
+</defs></svg>
+<div class="shell">
+  <header class="app-header">
+    <div class="brand"><span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="#i-stack"/></svg></span><div><span class="eyebrow">MODULE VAULT</span><h1>NAS 模块备份</h1></div></div>
+    <span class="badge" id="routeBadge">未检查入口</span>
+  </header>
+  <nav class="navigation" aria-label="主要功能">
+    <button type="button" data-view="overview" aria-controls="view-overview" aria-current="page"><svg class="icon" aria-hidden="true"><use href="#i-home"/></svg><span>概览</span></button>
+    <button type="button" data-view="snapshots" aria-controls="view-snapshots"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg><span>快照</span></button>
+    <button type="button" data-view="settings" aria-controls="view-settings"><svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg><span>设置</span></button>
+  </nav>
+  <main id="content" tabindex="-1">
+    <div id="message" class="notice" role="status" aria-live="polite" hidden></div>
+    <section id="view-overview" class="view" aria-labelledby="title-overview">
+      <div class="section-head"><div><span class="eyebrow">OVERVIEW</span><h2 id="title-overview" tabindex="-1">备份概览</h2></div><button class="quiet" id="polling" type="button" aria-pressed="false">暂停刷新</button></div>
+      <section class="backup-panel" aria-label="备份状态">
+        <div class="status-top"><span class="status-marker" id="statusMarker" aria-hidden="true"></span><span class="small-label">当前任务</span><span id="taskState" class="small-label">读取中</span></div>
+        <p id="status" class="phase" role="status" aria-live="polite">正在读取状态…</p>
+        <p id="progress" class="muted">连接 KernelSU 管理器后显示</p>
+        <div class="backup-action"><button id="backup" class="primary" type="button"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg><span>开始备份</span></button><span class="muted small">仅上传新增内容</span></div>
+      </section>
+      <dl class="readouts"><div class="readout wide"><dt>最近成功</dt><dd id="lastTime">—</dd></div><div class="readout"><dt>上次新增上传</dt><dd id="lastBytes">—</dd></div><div class="readout"><dt>快照条目</dt><dd id="lastFiles">—</dd></div></dl>
+      <section class="connection-panel" aria-label="连接与备份库">
+        <div class="row"><h3><svg class="icon" aria-hidden="true"><use href="#i-wifi"/></svg>最近连接入口</h3><span id="connectionMode" class="small-label">未检查</span></div>
+        <p id="connectionReason" class="muted">保存连接设置，检查后显示当前入口。</p>
+        <p id="repositoryStatus" class="small"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><span id="repositoryText">备份库尚未检查</span></p>
+      </section>
+      <p id="restoreState" class="muted small"></p>
+      <details class="disclosure"><summary>查看备份范围</summary><p class="muted small">KernelSU 模块、LSPosed 应用与配置，以及能识别的外部配置。</p><button id="inspect" class="secondary" type="button">检查范围</button><pre id="inventory" class="result" hidden></pre></details>
+    </section>
+    <section id="view-snapshots" class="view" aria-labelledby="title-snapshots" hidden>
+      <div class="section-head"><div><span class="eyebrow">SNAPSHOTS</span><h2 id="title-snapshots" tabindex="-1">历史快照</h2></div><button id="history" class="quiet" type="button"><svg class="icon" aria-hidden="true"><use href="#i-refresh"/></svg><span>刷新</span></button></div>
+      <p class="muted">每份快照包含完整清单，内容分包在快照间复用。</p>
+      <div id="historyEmpty" class="empty"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg><strong>读取 NAS 上的快照</strong><p>点击刷新，查看已完成的备份。</p></div>
+      <label class="field">选择快照<select id="snapshots" name="snapshot"><option value="">先刷新快照列表</option></select></label>
+      <div class="actions"><button id="plan" class="secondary" type="button">恢复预检</button><button id="export" class="secondary" type="button">导出 ZIP</button></div>
+      <p class="muted small">导出将所选快照所需数据合成一个 ZIP，保存到本机私有备份目录。</p>
+      <pre id="planInfo" class="result" hidden></pre>
+      <section id="confirmBox" class="danger-panel" hidden><h3>确认恢复范围</h3><p>恢复会安装模块应用，替换备份范围内的配置。准备后需重启，解锁恢复应用数据，再次重启使模块生效。</p><label class="check"><input id="agree" type="checkbox"><span>已核对快照和范围，同意覆盖这些内容</span></label><button id="restore" class="danger" type="button" disabled>恢复此快照</button></section>
+      <details class="disclosure"><summary>恢复管理与回退</summary><p class="muted small">恢复期间暂停备份。模块不会自动重启；旧数据保留到手动清理。硬件密钥绑定的配置可能需重新设置。</p><div class="actions"><button id="rollback" class="danger-outline" type="button">回退恢复</button><button id="clean" class="danger-outline" type="button">清理恢复暂存</button></div><p class="muted small">清理删除本机回退副本，保留 NAS 历史快照。恢复出厂后需先恢复 KernelSU / Root，普通作用域目标应用需自行安装。</p></details>
+    </section>
+    <section id="view-settings" class="view" aria-labelledby="title-settings" hidden>
+      <div class="section-head"><div><span class="eyebrow">CONNECTION</span><h2 id="title-settings" tabindex="-1">连接设置</h2></div><span class="small-label">双入口 · 同一备份库</span></div>
+      <form id="settings">
+        <fieldset><legend>WebDAV 入口</legend>
+          <label class="field">外网或默认地址<input id="externalOrigin" name="externalOrigin" type="url" required placeholder="https://nas.example.com:5006" autocomplete="url" aria-describedby="originHelp"></label>
+          <label class="field">内网地址<input id="internalOrigin" name="internalOrigin" type="url" placeholder="http://192.168.1.2:5005" autocomplete="off" aria-describedby="originHelp"></label>
+          <p id="originHelp" class="muted small">地址只填协议、主机与端口，目录统一填写在下面。</p>
+          <label class="field">共用备份路径<input id="path" name="path" type="text" value="/" required placeholder="/backup/" spellcheck="false" autocapitalize="off" aria-describedby="pathHelp"></label>
+          <p id="pathHelp" class="muted small">内外网使用同一目录，并校验备份库标识。中文与空格直接填写。</p>
+          <label class="field">内网 Wi-Fi 名称（每行一个）<textarea id="wifiNames" name="wifiNames" rows="2" placeholder="Home 5G" spellcheck="false" autocapitalize="off" aria-describedby="wifiHelp"></textarea></label>
+          <div class="wifi-tools"><button id="addWifi" class="secondary" type="button"><svg class="icon" aria-hidden="true"><use href="#i-wifi"/></svg><span>添加当前 Wi-Fi</span></button><span id="wifiHelp" class="muted small">名称精确匹配后优先内网，网络不通再走外网。</span></div>
+        </fieldset>
+        <fieldset><legend>共用凭据</legend><div class="form-grid">
+          <label class="field">用户名<input id="username" name="username" autocomplete="username" autocapitalize="off" spellcheck="false"></label>
+          <label class="field">密码<input id="password" name="password" type="password" autocomplete="new-password" placeholder="留空保留已保存密码"></label>
+        </div><p id="passwordHint" class="muted small">密码仅保存在手机私有目录。</p></fieldset>
+        <fieldset><legend>备份偏好</legend>
+          <label class="switch-row"><span><strong>自动备份</strong><span class="muted small">安装或更新后检查，每日补查，失败重试。</span></span><input id="auto" name="auto" type="checkbox" checked></label>
+          <label class="switch-row"><span><strong>允许 HTTP</strong><span class="muted small">HTTP 会明文传输账号和备份内容。</span></span><input id="allowHttp" name="allowHttp" type="checkbox"></label>
+        </fieldset>
+        <details class="disclosure"><summary>高级备份范围</summary><label class="field">原 ZIP 搜索目录<textarea id="zipDirs" name="zipDirs" rows="2" placeholder="每行一个目录" spellcheck="false"></textarea></label><label class="field">附加配置路径<textarea id="extraPaths" name="extraPaths" rows="2" placeholder="每行一个 /data/adb 下的明确路径" spellcheck="false"></textarea></label><p class="muted small">自动收集模块脚本引用的外部配置；二进制内自定义路径可在此补充。</p></details>
+        <div class="actions form-actions"><button class="primary" id="saveSettings" type="submit"><svg class="icon" aria-hidden="true"><use href="#i-save"/></svg><span>保存设置</span></button><button id="test" class="secondary" type="button">检查连接</button></div>
+        <p class="muted small">连接检查使用已保存设置；修改后请先保存。</p>
+      </form>
+    </section>
+    <footer class="footer"><span>KernelSU · NAS</span><span id="version">读取版本中</span></footer>
+  </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

@@ -29,7 +29,10 @@ public final class VirtualRecovery {
         check(!Files.exists(BASE)&&!Files.exists(MODULE)&&!Files.exists(EXTRA)&&!Files.exists(DB),"虚拟环境必须没有旧测试或LSPosed数据库");
         check(Restore.apkPaths(PKG,0).isEmpty(),"虚拟环境必须没有测试应用");
         Util.mkdir(STATE);file(BASE.resolve("owner"),"nasbackup-virtual-v1");
-        Util.write(STATE.resolve("config.json"),Util.obj("url",url,"allowHttp",true,"username","test","password","test","vault","virtual-recovery","zipDirs",new JSONArray(),"extraPaths",new JSONArray()));
+        JSONObject connection=Settings.normalize(Util.obj("url",url,"allowHttp",true,"username","test","password","test","vault","virtual-recovery","zipDirs",new JSONArray(),"extraPaths",new JSONArray()));
+        // Both loopback names use the same reverse mapping and repository path.
+        connection.put("internalOrigin",connection.getString("externalOrigin").replace("127.0.0.1","localhost")).put("wifiNames",new JSONArray().put("AndroidWifi"));
+        Util.write(STATE.resolve("config.json"),connection);
         check(Util.run("/system/bin/pm","install","-t","/data/local/tmp/nasbackup-fixture.apk").contains("Success"),"建立测试应用失败");
         int uid=Restore.uid(PKG,0);
         file(MODULE.resolve("module.prop"),"id="+ID+"\nname=Virtual recovery\nversion=1\nversionCode=1\n");
@@ -46,6 +49,9 @@ public final class VirtualRecovery {
             db.execSQL("INSERT INTO modules_state VALUES (?,0,1,0)",new Object[]{PKG});db.execSQL("INSERT INTO scope VALUES (?,'android',0)",new Object[]{PKG});db.execSQL("INSERT INTO lspd_configs VALUES ('fixture',X'010203')");
         }finally{db.close();}
         Engine e=engine(true);JSONObject saved=e.backup(),m=e.manifest("virtual-recovery",saved.getString("id"));Util.write(STATE.resolve("expected.json"),m);
+        check(Util.read(STATE.resolve("connection.json")).getString("mode").equals("internal"),"实际SSID匹配选择内网备份");
+        connection.put("wifiNames",new JSONArray());Util.write(STATE.resolve("config.json"),connection);
+        Engine increment=engine(true);increment.backup();check(increment.dav.uploadedBytes==0,"外网入口复用内网快照零内容上传");
         check(Util.run("/system/bin/pm","uninstall",PKG).contains("Success"),"删除源测试应用失败");Util.delete(MODULE);Util.delete(EXTRA);Util.delete(DB.getParent());
         check(!Files.exists(MODULE)&&!Files.exists(EXTRA)&&Restore.apkPaths(PKG,0).isEmpty(),"恢复前必须是空目标");
         check(!Files.exists(STATE.resolve("restore-stage")),"正式恢复下载暂存必须为空");

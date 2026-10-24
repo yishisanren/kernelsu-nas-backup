@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 
 final class Util {
     static final String ID = "nas_module_backup";
-    static final String VERSION = "0.1.0-beta.5";
+    static final String VERSION = "0.1.0-beta.6";
     static final java.nio.charset.Charset UTF8 = StandardCharsets.UTF_8;
     static String hash(byte[] data) throws Exception { return hex(MessageDigest.getInstance("SHA-256").digest(data)); }
     static String hash(Path p) throws Exception {

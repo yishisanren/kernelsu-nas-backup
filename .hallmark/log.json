@@ -1,0 +1,12 @@
+[
+  {
+    "version": "0.1.0-beta.6",
+    "genre": "modern-minimal",
+    "macrostructure": "Workbench functional app",
+    "theme": "Cobalt, system light/dark",
+    "navigation": "N3 side rail, mobile bottom navigation",
+    "footer": "Ft2 inline rule",
+    "typography": "offline system fonts, user-approved",
+    "scope": "User-approved full WebUI rebuild with existing restore gates retained"
+  }
+]

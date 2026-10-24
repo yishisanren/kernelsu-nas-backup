@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "install": {
+    "trigger": "first daemon observation",
+    "observedMillis": 63915,
+    "snapshot": "1792819247312-45188f31",
+    "uploadedBytes": 0,
+    "signature": "bd6a643a1b406c5051f2ee8d72f7a937a64a8a3a025ce74326801691359e0852",
+    "success": 1792819248366
+  },
+  "update": {
+    "trigger": "module version update",
+    "observedMillis": 123718,
+    "snapshot": "1792819370371-9f5bf2d7",
+    "uploadedBytes": 302,
+    "signature": "8c8c80f5c7cfc5ae25d29ed88ada2dfe4bf990f7b0cf09f79438cf947469ef34",
+    "success": 1792819371423
+  },
+  "daily": {
+    "trigger": "daily due unchanged signature",
+    "observedMillis": 61864,
+    "snapshot": "1792819432929-bbfbe6f8",
+    "uploadedBytes": 0,
+    "signature": "8c8c80f5c7cfc5ae25d29ed88ada2dfe4bf990f7b0cf09f79438cf947469ef34",
+    "success": 1792819433969
+  },
+  "systemClockChanged": false,
+  "physicalDeviceModified": false
+}

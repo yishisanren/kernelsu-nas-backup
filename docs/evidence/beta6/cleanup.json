@@ -1,0 +1,11 @@
+{
+  "passed": true,
+  "testPackageAbsent": true,
+  "uiModuleAndPrivateConfigurationAbsent": true,
+  "virtualRecoveryModuleAndDatabaseAbsent": true,
+  "adbReverseMappingsEmpty": true,
+  "ownedEmulatorStopped": true,
+  "ownedAvdRemoved": true,
+  "privateFixtureWebDavServersAndStorageRemoved": true,
+  "physicalDeviceModified": false
+}

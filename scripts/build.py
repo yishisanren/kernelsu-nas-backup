@@ -7,7 +7,7 @@ JAVA = pathlib.Path(os.environ.get('JAVA_HOME', '/path/to/jdk21'))
 SDK = pathlib.Path(os.environ.get('ANDROID_HOME', os.environ.get('ANDROID_SDK_ROOT', '/path/to/android-sdk')))
 BUILD = ROOT / 'build'
 DIST = ROOT / 'dist'
-VERSION='0.1.0-beta.5'
+VERSION=next(line.split('=',1)[1] for line in (ROOT/'module/module.prop').read_text().splitlines() if line.startswith('version='))
 
 def entry(z,name,data,mode=0o644):
     info=zipfile.ZipInfo(name,(2026,10,21,0,0,0));info.compress_type=zipfile.ZIP_DEFLATED
@@ -20,6 +20,7 @@ def main():
     if not (JAVA/'bin/javac').is_file() or not (SDK/'platforms/android-36/android.jar').is_file():
         raise SystemExit('Set JAVA_HOME to JDK 21 and ANDROID_HOME to an SDK containing Android Platform 36.')
     BUILD.mkdir(exist_ok=True);DIST.mkdir(exist_ok=True)
+    assert '"'+VERSION+'"' in (ROOT/'src/dev/nasbackup/Util.java').read_text(), 'Module and runtime versions must agree'
     deps=dependencies();android=SDK/'platforms/android-36/android.jar'
     classes=BUILD/'classes';testclasses=BUILD/'test-classes'
     for folder in [classes,testclasses]:

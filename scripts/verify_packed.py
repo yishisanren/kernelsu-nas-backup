@@ -3,7 +3,7 @@
 import argparse,json,pathlib,subprocess,sys,tempfile,shutil,tarfile,io,os,statistics
 from build import ROOT,BUILD
 
-p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--report-dir',type=pathlib.Path,required=True);p.add_argument('--trials',type=int,default=3);p.add_argument('--benchmark-only',action='store_true');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--report-dir',type=pathlib.Path,required=True);p.add_argument('--trials',type=int,default=3);p.add_argument('--benchmark-only',action='store_true');p.add_argument('--regression-only',action='store_true');a=p.parse_args()
 assert a.serial.startswith('emulator-') and 1<=a.trials<=5
 adb=['adb','-s',a.serial]
 def run(command,**kwargs):
@@ -32,6 +32,7 @@ try:
     else:
         start(temp/'regression',0);regression=java('nasbackup-packed.jar','PackedTest','http://10.0.2.2:'+port+'/');stop()
         (a.report_dir/'packed-regression.json').write_text(json.dumps(regression,ensure_ascii=False,indent=2))
+    if a.regression_only:print(json.dumps({'passed':True,'packedChecks':regression['passed']}));sys.exit(0)
     baseline=temp/'baseline';baseline.mkdir()
     archive=subprocess.check_output(['git','archive','v0.1.0-beta.4'],cwd=ROOT)
     with tarfile.open(fileobj=io.BytesIO(archive)) as tar:tar.extractall(baseline)

@@ -18,7 +18,7 @@ class Inventory {
     Path path(String p){return root.resolve(p.replaceFirst("^/",""));}
     JSONObject environment()throws Exception{
         return sandbox?Util.obj("device","fixture","api","37","abi","arm64-v8a","fingerprint","fixture","ksu","test","lsposed","test"):
-            Util.obj("device",Util.prop("ro.product.device"),"api",Util.prop("ro.build.version.sdk"),"abi",Util.prop("ro.product.cpu.abi"),"fingerprint",Util.prop("ro.build.fingerprint"),"ksu",Util.run("/system/bin/su","-v").trim(),"lsposed",moduleVersion("zygisk_lsposed"));
+            Util.obj("device",Util.prop("ro.product.device"),"api",Util.prop("ro.build.version.sdk"),"abi",Util.prop("ro.product.cpu.abi"),"fingerprint",Util.prop("ro.build.fingerprint"),"ksu",Util.run("/system/bin/sh","-c","su -v").trim(),"lsposed",moduleVersion("zygisk_lsposed"));
     }
     String moduleVersion(String id){try{return props(path("/data/adb/modules/"+id+"/module.prop")).getProperty("version","");}catch(Exception e){return "";}}
     boolean enabled(Path module){Path live=path("/data/adb/modules/"+module.getFileName());return !Files.exists((Files.isDirectory(live)?live:module).resolve("disable"));}

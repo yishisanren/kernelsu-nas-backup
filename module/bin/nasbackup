@@ -1,4 +1,25 @@
 #!/system/bin/sh
 MODDIR="${0%/bin/nasbackup}"
+STATE=/data/adb/nas_module_backup
+# A cached, sanitized config lets polling avoid starting a Java VM.
+if [ "$1" = status ] && [ "$(id -u)" = 0 ] && [ -f "$STATE/ui-config.cache" ]; then
+  VERSION=$(sed -n 's/^version=//p' "$MODDIR/module.prop")
+  HASH=unconfigured
+  if [ -f "$STATE/config.json" ]; then HASH=$(sha256sum "$STATE/config.json"); HASH=${HASH%% *}; fi
+  if { [ ! -f "$STATE/restore.json" ] || { [ -f "$STATE/restore-ui.json" ] && [ ! "$STATE/restore.json" -nt "$STATE/restore-ui.json" ]; }; } && exec 3<"$STATE/ui-config.cache"; then
+    IFS= read -r KEY <&3
+    if [ "$KEY" = "$HASH:$VERSION" ]; then
+      BUSY=false
+      if [ -f "$STATE/operation.pid" ];then PID=$(cat "$STATE/operation.pid");case "$PID" in ''|*[!0-9]*) ;; *) if kill -0 "$PID" 2>/dev/null;then BUSY=true;fi ;; esac;fi
+      printf '{"ok":true,"busy":%s,"config":' "$BUSY";cat <&3
+      printf ',"status":';if [ -f "$STATE/status.json" ]; then cat "$STATE/status.json";else printf '{"phase":"尚未备份"}';fi
+      printf ',"restore":';if [ -f "$STATE/restore.json" ];then cat "$STATE/restore-ui.json";else printf '{"phase":"none"}';fi
+      printf ',"connection":';if [ -f "$STATE/connection.json" ];then cat "$STATE/connection.json";else printf '{}';fi
+      printf ',"lastBackup":';if [ -f "$STATE/last-backup.json" ];then cat "$STATE/last-backup.json";else printf '{}';fi
+      printf '}\n';exit 0
+    fi
+    exec 3<&-
+  fi
+fi
 export CLASSPATH="$MODDIR/lib/nasbackup.jar"
 exec /system/bin/app_process /system/bin dev.nasbackup.Main "$@"

@@ -12,7 +12,7 @@ final class Restore {
     Restore(Engine engine){e=engine;state=e.state;inv=e.inventory;journal=state.resolve("restore.json");}
     JSONObject status()throws Exception{return Files.exists(journal)?Util.read(journal):Util.obj("phase","none");}
     static boolean exists(Path p){return Files.exists(p,LinkOption.NOFOLLOW_LINKS);}
-    void save(JSONObject j)throws Exception{Util.write(journal,j);}
+    void save(JSONObject j)throws Exception{Util.write(journal,j);UiState.restore(state,j);}
     Path target(String p)throws Exception {
         Path result=inv.path(p);Path c=inv.root;
         for(Path part:inv.root.relativize(result)){c=c.resolve(part);Util.require(!Files.isSymbolicLink(c),"恢复目标经过符号链接: "+p);}

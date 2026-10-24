@@ -1,6 +1,6 @@
 """Isolated WebDAV fixture. Only bind loopback; no real NAS data or credentials."""
 import argparse,base64,hashlib,http.server,json,pathlib,urllib.parse,xml.sax.saxutils,threading,os,ssl,socket
-parser=argparse.ArgumentParser();parser.add_argument('--root',required=True);parser.add_argument('--port',type=int,default=18791);parser.add_argument('--cert');parser.add_argument('--key');parser.add_argument('--latency-ms',type=float,default=0);parser.add_argument('--keep-alive',action='store_true');args=parser.parse_args()
+parser=argparse.ArgumentParser();parser.add_argument('--root',required=True);parser.add_argument('--port',type=int,default=18791);parser.add_argument('--cert');parser.add_argument('--key');parser.add_argument('--latency-ms',type=float,default=0);parser.add_argument('--keep-alive',action='store_true');parser.add_argument('--deny',type=int);args=parser.parse_args()
 ROOT=pathlib.Path(args.root).resolve();ROOT.mkdir(parents=True,exist_ok=True)
 os.chmod(ROOT,0o700)
 stats={'puts':0,'object_puts':0,'pack_puts':0,'bytes':0,'get_bytes':0,'unauthorized':0,'requests':0,'GET':0,'HEAD':0,'PUT':0,'MKCOL':0,'PROPFIND':0}
@@ -24,6 +24,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             stats['requests']+=1;stats[self.command]=stats.get(self.command,0)+1
             if args.latency_ms:time.sleep(args.latency_ms/1000)
         if self.headers.get('Authorization')!='Basic '+base64.b64encode(b'test:test').decode():stats['unauthorized']+=1;self.reply(401);return None
+        if args.deny:
+            self.reply(args.deny,**({'Location':'http://127.0.0.1:1/credential-sink'} if args.deny==307 else {}));return None
         value=urllib.parse.unquote(urllib.parse.urlparse(self.path).path).lstrip('/')
         path=(ROOT/value).resolve()
         if not path.is_relative_to(ROOT):self.reply(403);return None
@@ -46,7 +48,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not p.parent.exists():self.reply(409);return
         if fault['next'] and content:
             fault['next']=False;p.write_bytes(data[:len(data)//2]);os.chmod(p,0o600);self.reply(503);return
-        p.write_bytes(data);os.chmod(p,0o600);stats['puts']+=1;stats['bytes']+=len(data)
+        if self.headers.get('If-None-Match')=='*':
+            try:
+                with p.open('xb') as out:out.write(data)
+            except FileExistsError:self.reply(412);return
+        else:p.write_bytes(data)
+        os.chmod(p,0o600);stats['puts']+=1;stats['bytes']+=len(data)
         if '/objects/' in str(p):stats['object_puts']+=1
         if '/packs/' in str(p):stats['pack_puts']+=1
         self.reply(201)
@@ -71,8 +78,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.rfile.read(int(self.headers.get('Content-Length',0)))
         if not p.is_dir():self.reply(404);return
         body=['<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">']
-        for f in [p,*sorted(p.iterdir())]:
-            href='/'+str(f.relative_to(ROOT))+('/' if f.is_dir() else '')
+        for f in ([p] if self.headers.get('Depth')=='0' else [p,*sorted(p.iterdir())]):
+            href='/'+urllib.parse.quote(str(f.relative_to(ROOT)))+('/' if f.is_dir() else '')
             body.append('<d:response><d:href>'+xml.sax.saxutils.escape(href)+'</d:href><d:propstat><d:prop><d:resourcetype/></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>')
         body.append('</d:multistatus>');self.reply(207,''.join(body).encode(),**{'Content-Type':'application/xml'})
 class Server(http.server.ThreadingHTTPServer):

@@ -17,7 +17,7 @@ final class Engine {
     Packs packs;
     String currentPhase="";long lastProgress;
     Engine(Path state,Inventory inventory,JSONObject config)throws Exception{this(state,inventory,config,true);}
-    Engine(Path state,Inventory inventory,JSONObject config,boolean network)throws Exception{this.state=state;this.inventory=inventory;this.config=config;this.dav=network?new Dav(config):null;}
+    Engine(Path state,Inventory inventory,JSONObject config,boolean network)throws Exception{this.state=state;this.inventory=inventory;this.config=config;this.dav=network?Connection.open(state,config):null;}
     String vault()throws Exception{
         if(config.optString("vault").matches("[a-zA-Z0-9_-]{1,80}"))return config.getString("vault");
         String identity=inventory.sandbox?"fixture":Util.prop("ro.boot.serialno")+Util.prop("ro.product.device");
@@ -131,7 +131,7 @@ final class Engine {
         String mount=inventory.metamodule();if(!mount.isEmpty()&&Files.exists(inventory.path("/data/adb/modules/"+mount+"/remove")))mount="";
         manifest.put("metamodule",mount);validate(manifest);
         // Publish the full logical inventory only after all incremental objects are durable and verified.
-        byte[] bytes=Util.bytes(manifest);Util.require(bytes.length<=64*1024*1024,"快照清单超出大小限制");dav.put("vaults/"+vault+"/snapshots/"+id+".json",bytes);
+        byte[] bytes=Util.bytes(manifest);Util.require(bytes.length<=64*1024*1024,"快照清单超出大小限制");dav.checkRepository();dav.put("vaults/"+vault+"/snapshots/"+id+".json",bytes);
         Util.require(Util.hash(dav.get("vaults/"+vault+"/snapshots/"+id+".json",64*1024*1024)).equals(Util.hash(bytes)),"NAS 清单回读校验失败");
         dav.put("vaults/"+vault+"/device.json",Util.bytes(inventory.environment()));
         dav.put("vaults/"+vault+"/snapshots/"+id+".sha256",Util.hash(bytes).getBytes(Util.UTF8));
