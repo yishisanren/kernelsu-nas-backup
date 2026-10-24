@@ -1,0 +1,268 @@
+{
+  "passed": 93,
+  "engine": "Playwright Chromium",
+  "backend": "actual root CLI in disposable Android35 emulator",
+  "backup": {
+    "first": {
+      "millis": 3208.716458,
+      "uploadedBytes": 549,
+      "uploadedFiles": 1
+    },
+    "unchanged": {
+      "millis": 3206.809958,
+      "uploadedBytes": 0,
+      "uploadedFiles": 0
+    },
+    "changed": {
+      "millis": 3209.135292000001,
+      "uploadedBytes": 269,
+      "uploadedFiles": 1
+    }
+  },
+  "measurements": [
+    {
+      "theme": "light",
+      "width": 320,
+      "view": "overview",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 5.243713321213086,
+      "minControl": null
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "view": "snapshots",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 5.243713321213086,
+      "minControl": 3.1610818728366272
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "view": "settings",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 5.243713321213086,
+      "minControl": 3.1610818728366272
+    },
+    {
+      "theme": "light",
+      "width": 375,
+      "view": "overview",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 5.243713321213086,
+      "minControl": null
+    },
+    {
+      "theme": "light",
+      "width": 375,
+      "view": "snapshots",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 5.243713321213086,
+      "minControl": 3.1610818728366272
+    },
+    {
+      "theme": "light",
+      "width": 375,
+      "view": "settings",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 5.243713321213086,
+      "minControl": 3.1610818728366272
+    },
+    {
+      "theme": "light",
+      "width": 414,
+      "view": "overview",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 5.243713321213086,
+      "minControl": null
+    },
+    {
+      "theme": "light",
+      "width": 414,
+      "view": "snapshots",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 5.243713321213086,
+      "minControl": 3.1610818728366272
+    },
+    {
+      "theme": "light",
+      "width": 414,
+      "view": "settings",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 5.243713321213086,
+      "minControl": 3.1610818728366272
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "view": "overview",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 5.243713321213086,
+      "minControl": null
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "view": "snapshots",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 5.243713321213086,
+      "minControl": 3.1610818728366272
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "view": "settings",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 5.243713321213086,
+      "minControl": 3.1610818728366272
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "view": "overview",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 6.465640992074271,
+      "minControl": null
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "view": "snapshots",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 6.465640992074271,
+      "minControl": 5.291040542636645
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "view": "settings",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 6.465640992074271,
+      "minControl": 5.291040542636645
+    },
+    {
+      "theme": "dark",
+      "width": 375,
+      "view": "overview",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 6.465640992074271,
+      "minControl": null
+    },
+    {
+      "theme": "dark",
+      "width": 375,
+      "view": "snapshots",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 6.465640992074271,
+      "minControl": 5.291040542636645
+    },
+    {
+      "theme": "dark",
+      "width": 375,
+      "view": "settings",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 6.465640992074271,
+      "minControl": 5.291040542636645
+    },
+    {
+      "theme": "dark",
+      "width": 414,
+      "view": "overview",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 6.465640992074271,
+      "minControl": null
+    },
+    {
+      "theme": "dark",
+      "width": 414,
+      "view": "snapshots",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 6.465640992074271,
+      "minControl": 5.291040542636645
+    },
+    {
+      "theme": "dark",
+      "width": 414,
+      "view": "settings",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 6.465640992074271,
+      "minControl": 5.291040542636645
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "view": "overview",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 6.465640992074271,
+      "minControl": null
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "view": "snapshots",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 6.465640992074271,
+      "minControl": 5.291040542636645
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "view": "settings",
+      "outside": [],
+      "text": [],
+      "borders": [],
+      "minText": 6.465640992074271,
+      "minControl": 5.291040542636645
+    }
+  ],
+  "errors": [],
+  "physicalDeviceModified": false,
+  "realKernelSUWebViewVerified": false,
+  "screenReaderVerified": false
+}

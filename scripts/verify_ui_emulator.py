@@ -2,7 +2,7 @@
 """Actual CLI plus browser, warm status timings and automatic scheduling on an owned emulator."""
 import argparse,pathlib,subprocess,json,tempfile,shutil,zipfile,os,time,statistics,base64,sys,hashlib,shlex
 from build import ROOT,BUILD,DIST,VERSION
-p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--report-dir',type=pathlib.Path,required=True);p.add_argument('--skip-auto',action='store_true');a=p.parse_args();assert a.serial.startswith('emulator-')
+p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--report-dir',type=pathlib.Path,required=True);p.add_argument('--skip-auto',action='store_true');p.add_argument('--webview-only',action='store_true');a=p.parse_args();assert a.serial.startswith('emulator-')
 adb=['adb','-s',a.serial];state='/data/adb/nas_module_backup';module='/data/adb/modules/nas_module_backup';fixture='/data/adb/modules/nasbackup_ui_fixture';cli=module+'/bin/nasbackup'
 def run(argv):
     try:return subprocess.check_output(argv,text=True,stderr=subprocess.STDOUT,timeout=120)
@@ -26,6 +26,9 @@ try:
         proc=subprocess.Popen([sys.executable,str(ROOT/'tests/dav_server.py'),'--root',str(temp/'dav'),'--port',str(port),'--keep-alive'],stdout=subprocess.PIPE,text=True);servers.append(proc);assert json.loads(proc.stdout.readline())['ready']
     # Existing beta.5 single-URL config remains byte-for-byte intact until an explicit save.
     old={'url':'http://10.0.2.2:18821/backup/','username':'test','password':'fixture-secret','allowHttp':True,'auto':False,'vault':'ui-fixture','zipDirs':[],'extraPaths':[]};write(state+'/config.json',old);raw=shell('sha256sum '+state+'/config.json').split()[0];s=status();assert s['config']['path']=='/backup/' and s['config']['passwordSaved'] and 'password' not in s['config'];assert shell('sha256sum '+state+'/config.json').split()[0]==raw
+    if a.webview_only:
+        old.update({'externalOrigin':'http://10.0.2.2:18821','internalOrigin':'http://10.0.2.2:18822','path':'/backup/','password':'test','wifiNames':['AndroidWifi']});old.pop('url');write(state+'/config.json',old);shell(cli+' backup')
+        print(run([sys.executable,str(ROOT/'scripts/verify_android_webview.py'),'--serial',a.serial,'--report-dir',str(a.report_dir)]),flush=True);sys.exit(0)
     baseline=DIST/'nas-module-backup-0.1.0-beta.5.zip';assert baseline.is_file(),'Keep the released beta.5 ZIP in dist for comparison'
     with zipfile.ZipFile(baseline) as z:z.extractall(temp/'baseline')
     run(adb+['push',str(temp/'baseline'),'/data/local/tmp/nasbackup-ui-baseline']);oldcli='/data/local/tmp/nasbackup-ui-baseline/bin/nasbackup';shell('chmod 755 '+oldcli)
@@ -40,6 +43,7 @@ try:
     write(state+'/restore.json',{'phase':'awaiting-unlock','privatePayload':'never-expose'});assert status()['restore']=={'phase':'awaiting-unlock','error':''};time.sleep(.02);write(state+'/restore.json',{'phase':'complete','privatePayload':'never-expose'});assert status()['restore']=={'phase':'complete','error':''};shell('rm '+state+'/restore.json');assert status()['restore']['phase']=='none'
     perf={'environment':'Disposable Android35 arm64; wall time includes identical adb round trip; 15 alternating warm samples','millis':timings,'medianMillis':{k:statistics.median(v) for k,v in timings.items()},'passwordReturned':False,'legacyConfigPreservedUntilSave':True,'configAndJournalCacheInvalidation':True,'busyPidDetected':True};(a.report_dir/'status-performance.json').write_text(json.dumps(perf,indent=2))
     print(run(['node',str(ROOT/'tests/webui_browser.cjs'),a.serial,str(a.report_dir)]),flush=True)
+    print(run([sys.executable,str(ROOT/'scripts/verify_android_webview.py'),'--serial',a.serial,'--report-dir',str(a.report_dir)]),flush=True)
     folder=temp/'dav/backup';manifest_path=folder/('vaults/ui-fixture/snapshots/'+status()['lastBackup']['id']+'.json');payload=manifest_path.read_bytes();assert hashlib.sha256(payload).hexdigest()==manifest_path.with_suffix('.sha256').read_text().strip();m=json.loads(payload);blobs={}
     for digest,pack in m['packs'].items():
         archive=folder/('packs/'+digest+'.zip');data=archive.read_bytes();assert len(data)==pack['size'] and hashlib.sha256(data).hexdigest()==digest

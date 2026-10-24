@@ -2,7 +2,7 @@
 
 通过 WebDAV 增量备份 KernelSU 与 LSPosed 模块环境，支持历史快照恢复和本机回退。当前版本：`0.1.0-beta.6`。
 
-安装 ZIP、源码 ZIP 和 SHA-256 校验文件见仓库 Releases。beta.6 增加内外网双入口、多个 Wi-Fi 名称和全新 WebUI，继续使用 beta.5 的压缩分包备份库。beta.6 先做一次性模拟器全链路验证，真机升级与管理器 WebView 验收待用户连接 ADB 后进行。结果与边界见 [beta.6 验证记录](docs/BETA6.md)。
+安装 ZIP、源码 ZIP 和 SHA-256 校验文件见仓库 Releases。beta.6 增加内外网双入口、多个 Wi-Fi 名称和全新 WebUI，继续使用 beta.5 的压缩分包备份库。一次性模拟器完整复验与原生 Android WebView 触控验收已通过；结果和复现方法见 [模拟器最终验收](docs/BETA6-FINAL.md)，首轮记录见 [beta.6 验证记录](docs/BETA6.md)。真机完整验收另行安排，恢复仅在模拟环境验证。
 
 仓库及附件不包含私人 WebDAV 连接配置、真实备份数据或实机截图。验证记录中的连接信息已匿名化；请在手机 WebUI 中填写自己的地址和凭据。
 

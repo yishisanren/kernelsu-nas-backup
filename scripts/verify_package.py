@@ -14,6 +14,7 @@ with zipfile.ZipFile(target) as z:
     names=set(z.namelist())
     required={'module.prop','customize.sh','service.sh','post-fs-data.sh','action.sh','bin/nasbackup','lib/nasbackup.jar','webroot/index.html','webroot/app.js','webroot/style.css','licenses/APACHE-2.0.txt'}
     assert required<=names
+    assert not any(n.startswith('tests/') or n.endswith('.apk') for n in names), 'Test APKs must not enter the installable module'
     assert not any(n.startswith('/') or '..' in pathlib.PurePosixPath(n).parts for n in names)
     assert 'id=nas_module_backup' in z.read('module.prop').decode()
     for p in (ROOT/'module').rglob('*'):
@@ -27,5 +28,6 @@ with zipfile.ZipFile(target) as z:
         assert b'Ldev/nasbackup/Main;' in dex
         for source in (ROOT/'tests/java/dev/nasbackup').glob('*.java'):
             assert ('Ldev/nasbackup/'+source.stem+';').encode() not in dex
+        assert b'Ldev/nasbackup/webviewfixture/' not in dex
 result={'zipCrc':True,'requiredEntries':True,'scriptsParse':True,'sourceMatches':True,'testClassesExcluded':True,'reproducibleBuildVerified':reproduced,'sha256':hashlib.sha256(target.read_bytes()).hexdigest(),'bytes':target.stat().st_size}
 folder=ROOT/'docs/evidence';folder.mkdir(parents=True,exist_ok=True);(folder/'package.json').write_text(json.dumps(result,indent=2));print(json.dumps(result))

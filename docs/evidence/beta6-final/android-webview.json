@@ -1,0 +1,40 @@
+{
+  "passed": 28,
+  "engine": "Mozilla/5.0 (Linux; Android 15; sdk_gphone64_arm64 Build/AE3A.240806.043; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/124.0.6367.219 Mobile Safari/537.36",
+  "physicalTouchInjection": "adb input touchscreen -d 0",
+  "scroll": {
+    "start": 0,
+    "after": 481.5238037109375,
+    "returned": 4.190476417541504
+  },
+  "nativeTouchActions": [
+    "[data-view=settings]",
+    "#saveSettings",
+    "#test",
+    "[data-view=overview]",
+    "#backup",
+    "#backup",
+    "[data-view=snapshots]",
+    "#history",
+    "#plan",
+    "[data-view=settings]",
+    "[data-view=settings]"
+  ],
+  "keyboardDismissals": 1,
+  "backup": {
+    "unchanged": {
+      "milliseconds": 4367,
+      "uploadedFiles": 0,
+      "uploadedBytes": 0
+    },
+    "changed": {
+      "milliseconds": 4199,
+      "uploadedFiles": 1,
+      "uploadedBytes": 290
+    }
+  },
+  "errors": [],
+  "physicalDeviceModified": false,
+  "productionRestorePerformed": false,
+  "realKernelSUBridgeVerified": false
+}

@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "requests": 15,
+  "activeStatus": 0,
+  "maxConcurrentStatus": 1,
+  "physicalDeviceModified": false,
+  "transport": "native JavascriptInterface to nonce-scoped loopback server; actual emulator root CLI",
+  "realKernelSUBridgeVerified": false
+}

@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "testModulesAndStateAbsent": true,
+  "testApksAbsent": true,
+  "testLsposedDatabaseAbsent": true,
+  "physicalDeviceModified": false
+}
